@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catalog-extensions"
+version = "0.1.0"
+description = "Sidecar catalog API extensions for Open edX Discovery"
+requires-python = ">=3.11"
+
+dependencies = [
+    "djangorestframework",
+    "requests",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["catalog_extensions*"]
