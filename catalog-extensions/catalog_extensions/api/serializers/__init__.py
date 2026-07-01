@@ -1,1 +1,1 @@
-from .course import CourseDetailSerializer, CourseListSerializer
+from .course import CourseDetailSerializer, CourseListSerializer, CourseRunSerializer
