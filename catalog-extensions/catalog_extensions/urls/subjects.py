@@ -1,14 +1,7 @@
-from django.http import JsonResponse
 from django.urls import path
 
-
-def not_implemented(request):
-    return JsonResponse(
-        {"detail": "Subjects endpoint not implemented"},
-        status=501,
-    )
-
+from catalog_extensions.api.views.subjects import SubjectListView
 
 urlpatterns = [
-    path("", not_implemented, name="subjects"),
+    path("", SubjectListView.as_view(), name="subject-list"),
 ]

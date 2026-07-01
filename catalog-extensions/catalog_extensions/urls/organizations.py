@@ -1,14 +1,7 @@
-from django.http import JsonResponse
 from django.urls import path
 
-
-def not_implemented(request):
-    return JsonResponse(
-        {"detail": "Organizations endpoint not implemented"},
-        status=501,
-    )
-
+from catalog_extensions.api.views.organizations import OrganizationListView
 
 urlpatterns = [
-    path("", not_implemented, name="organizations"),
+    path("", OrganizationListView.as_view(), name="organization-list"),
 ]
