@@ -1,14 +1,11 @@
-from django.http import JsonResponse
 from django.urls import path
 
-
-def not_implemented(request):
-    return JsonResponse(
-        {"detail": "Programs endpoint not implemented"},
-        status=501,
-    )
-
+from catalog_extensions.api.views.programs import (
+    ProgramDetailView,
+    ProgramListView,
+)
 
 urlpatterns = [
-    path("", not_implemented, name="programs"),
+    path("", ProgramListView.as_view(), name="program-list"),
+    path("<uuid:uuid>/", ProgramDetailView.as_view(), name="program-detail"),
 ]

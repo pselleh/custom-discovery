@@ -2,11 +2,17 @@ from rest_framework import serializers
 
 
 class OrganizationSerializer(serializers.Serializer):
-    uuid = serializers.UUIDField()
+    uuid = serializers.UUIDField(
+    read_only=True,
+)
 
-    key = serializers.CharField()
+    key = serializers.CharField(
+    read_only=True,
+)
 
-    name = serializers.CharField()
+    name = serializers.CharField(
+    read_only=True,
+)
 
     certificate_name = serializers.CharField(
         allow_blank=True,
@@ -36,9 +42,13 @@ class OrganizationSerializer(serializers.Serializer):
         required=False,
     )
 
-    created = serializers.DateTimeField()
+    created = serializers.DateTimeField(
+    read_only=True,
+)
 
-    modified = serializers.DateTimeField()
+    modified = serializers.DateTimeField(
+    read_only=True,
+)
 
     def get_marketing_url(self, obj):
         return obj.marketing_url or ""
