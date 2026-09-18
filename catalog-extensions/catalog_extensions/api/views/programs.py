@@ -15,6 +15,8 @@ class ProgramListView(APIView):
             "organization": request.query_params.get("organization"),
             "title": request.query_params.get("title"),
             "uuid": request.query_params.get("uuid"),
+            "program_code": request.query_params.get("program_code"),
+            "catalog_status": request.query_params.get("catalog_status"),
         }
 
         queryset = ProgramService().list_programs(

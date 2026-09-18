@@ -19,6 +19,7 @@ class CourseListView(APIView):
             "subject": request.query_params.get("subject"),
             "title": request.query_params.get("title"),
             "uuid": request.query_params.get("uuid"),
+            "catalog_status": request.query_params.get("catalog_status"),
         }
 
         queryset = CourseService().list_courses(

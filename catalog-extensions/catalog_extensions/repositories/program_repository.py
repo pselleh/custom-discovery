@@ -11,6 +11,18 @@ class ProgramRepository:
                 # Program relationships
                 "authoring_organizations",
                 "courses",
+                "cba_catalog",
+                "cba_course_requirements",
+                "cba_course_requirements__course_run",
+                "cba_course_requirements__course_run__course",
+                "cba_course_requirements__course_run__cba_catalog",
+                "cba_course_requirements__course_run__cba_faculty_assignments",
+                "cba_course_requirements__course_run__cba_faculty_assignments__person",
+                "cba_course_requirements__course_run__seats",
+                "cba_course_requirements__course_run__seats__currency",
+                "cba_course_requirements__course_run__seats__type",
+                "cba_faculty_assignments",
+                "cba_faculty_assignments__person",
 
                 # Course relationships
                 "courses__subjects",
@@ -18,6 +30,9 @@ class ProgramRepository:
 
                 # CourseRun relationships
                 "courses__course_runs",
+                "courses__course_runs__cba_catalog",
+                "courses__course_runs__cba_faculty_assignments",
+                "courses__course_runs__cba_faculty_assignments__person",
                 "courses__course_runs__seats",
                 "courses__course_runs__seats__currency",
                 "courses__course_runs__seats__type",
@@ -43,6 +58,16 @@ class ProgramRepository:
         if filters.get("uuid"):
             queryset = queryset.filter(
                 uuid=filters["uuid"]
+            )
+
+        if filters.get("program_code"):
+            queryset = queryset.filter(
+                cba_catalog__program_code=filters["program_code"]
+            )
+
+        if filters.get("catalog_status"):
+            queryset = queryset.filter(
+                cba_catalog__catalog_status=filters["catalog_status"]
             )
 
         return queryset.distinct()[:limit]

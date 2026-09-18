@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE_VERSION="cba/openedx-discovery:21.0.4-production"
+IMAGE_VERSION="cba/openedx-discovery:22.0.0-production"
 IMAGE_LATEST="custom-openedx-discovery:latest"
 
 echo "==> Syncing catalog-extensions"

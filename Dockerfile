@@ -1,4 +1,4 @@
-FROM docker.io/overhangio/openedx-discovery:21.0.1
+FROM docker.io/overhangio/openedx-discovery:22.0.0
 
 USER root
 

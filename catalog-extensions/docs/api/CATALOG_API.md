@@ -1,224 +1,136 @@
 # CBA Catalog API Specification
 
-Version: 1.0
+Version: 2.0
 
-Implementation Status
+The public API is read-only. Catalog creation and updates are performed with the
+authenticated Discovery administration interface or the `import_cba_catalog`
+management command.
+
+## Authority by data type
+
+| Data | System of record |
+|---|---|
+| Course key, organization, number, run, title, pacing | Studio, synchronized to Discovery |
+| Course outline and learning content | Studio |
+| Catalog descriptions, syllabus, outcomes, references | Discovery |
+| Exact duration, price, currency, waitlist status | Discovery |
+| Certificate programs, sequence, requirements, program faculty | Discovery |
+| Public catalog presentation | Wagtail consuming this API |
+
+Certificate programs are not Studio courses. Their component microcourses are
+created in Studio; program metadata and relationships are maintained in Discovery.
+
+## Endpoints
 
 | Endpoint | Status |
-|----------|--------|
-| GET /api/cba/v1/courses/ | ✅ Implemented |
-| GET /api/cba/v1/courses/{course_key}/ | ✅ Implemented |
-| GET /api/cba/v1/programs/ | 🚧 Planned |
-| GET /api/cba/v1/programs/{uuid}/ | 🚧 Planned |
-| GET /api/cba/v1/organizations/ | 🚧 Planned |
-| GET /api/cba/v1/subjects/ | 🚧 Planned |
-| GET /api/cba/v1/search/ | 🚧 Planned |
-| GET /api/cba/v1/homepage/ | 🚧 Planned |
-| GET /api/cba/v1/media/{id}/ | 🚧 Planned |
+|---|---|
+| `GET /api/cba/v1/courses/` | Implemented |
+| `GET /api/cba/v1/courses/{course_key}/` | Implemented |
+| `GET /api/cba/v1/programs/` | Implemented |
+| `GET /api/cba/v1/programs/{uuid}/` | Implemented |
+| `GET /api/cba/v1/organizations/` | Implemented |
+| `GET /api/cba/v1/subjects/` | Implemented |
+| `GET /api/cba/v1/search/` | Not implemented; returns 501 |
+| `GET /api/cba/v1/homepage/` | Not implemented; returns 501 |
+| `GET /api/cba/v1/media/` | Not implemented; returns 501 |
 
-Authoritative Service:
-Open edX Discovery + catalog_extensions
+## Microcourse response fields
 
-Base URL
+The course-detail endpoint accepts either the native Discovery course key or a
+full Studio course-run key such as
+`course-v1:CBA+ORF101M01C01+2027`.
 
-```
-/api/cba/v1/
-```
+| Field | Type | Notes |
+|---|---|---|
+| `course_key` | string | Full Studio course-run key |
+| `organization` | string | Parsed from `course_key` |
+| `course_number` | string | Parsed from `course_key` |
+| `course_run` | string | Parsed from `course_key` |
+| `title` | string | Native course title |
+| `pacing` | string | `self_paced` for CBA microcourses |
+| `duration_minutes` | integer | Exact expected completion time |
+| `price` | decimal string | From the Discovery seat |
+| `currency` | string | Three-letter currency code |
+| `catalog_status` | string | Includes `waitlist_open` |
+| `short_description` | HTML string | Native Discovery course field |
+| `full_description` | HTML string | Native Discovery course field |
+| `learning_outcomes` | array | Structured catalog outcomes |
+| `course_overview` | HTML string | Catalog overview |
+| `syllabus` | HTML string | Learner-facing instructional outline |
+| `references` | array | Standards and other sources |
+| `faculty` | array | Zero or more public faculty assignments |
+| `course_runs` | array | Native run data plus CBA catalog fields |
 
----
+The `faculty` array is separate from Studio course-team permissions. Each item
+contains the person, public role, credentials, biography, profile information,
+and display order.
 
-# Design Principles
+## Certificate-program response fields
 
-- Discovery is the single source of truth.
-- CBAUI consumes this API only.
-- No catalog business logic exists in CBAUI.
-- All endpoints return JSON.
-- All list endpoints support pagination.
-- All endpoints are read-only.
+| Field | Type | Notes |
+|---|---|---|
+| `program_code` | string | Stable CBA program identifier |
+| `title` | string | Public certificate title |
+| `subtitle` | string | Program subtitle |
+| `short_description` | string | Card/search copy |
+| `full_description` | HTML string | Detail-page copy |
+| `pacing` | string | Program delivery model |
+| `duration_minutes` | integer | Total program duration |
+| `price` | decimal string | Program price, if sold as a bundle |
+| `currency` | string | Three-letter currency code |
+| `catalog_status` | string | Includes `waitlist_open` |
+| `learning_outcomes` | array | Program-level outcomes |
+| `course_overview` | HTML string | Program overview |
+| `syllabus` | HTML string | Complete program syllabus |
+| `completion_requirements` | HTML string | Required learning and award rules |
+| `references` | array | Program standards and sources |
+| `microcourses` | array | Ordered course-run records with `required` flags |
+| `program_faculty` | array | Any number of role-based faculty assignments |
 
----
+Supported public faculty roles are:
 
-# Endpoints
+- `program_director`
+- `lead_sme`
+- `instructor`
+- `facilitator`
+- `course_author`
+- `technical_reviewer`
 
-| Endpoint | Purpose |
-|----------|---------|
-| GET /courses/ | List courses |
-| GET /courses/{course_key}/ | Course detail |
-| GET /programs/ | List programs |
-| GET /programs/{uuid}/ | Program detail |
-| GET /organizations/ | List organizations |
-| GET /subjects/ | List subjects |
-| GET /homepage/ | Homepage content |
-| GET /search/ | Catalog search |
-| GET /media/{id}/ | Media metadata |
+The same person may hold more than one role. Multiple instructors are supported,
+and `display_order` controls the order shown by Wagtail.
 
----
+## Catalog status values
 
-# Course List
+- `draft`
+- `waitlist_open`
+- `enrollment_open`
+- `enrollment_closed`
+- `archived`
 
-GET
+`waitlist_open` is a CBA catalog state, not a native Studio enrollment state.
+While a record is on the waitlist, Studio enrollment should remain closed and
+Wagtail should render the **Join Waitlist** call to action.
 
-```
-/api/cba/v1/courses/
-```
+## Bulk import
 
-Response
+Validate a complete JSON file without changing the database:
 
-```json
-{
-    "count": 0,
-    "results": []
-}
-```
-
-Each course contains
-
-| Field | Type | Required |
-|---------|------|----------|
-| key | string | Yes |
-| uuid | string | Yes |
-| title | string | Yes |
-| short_description | string | Yes |
-| image_url | string | Yes |
-| marketing_url | string | Yes |
-| organization | object | Yes |
-| subjects | array | Yes |
-
----
-
-# Course Detail
-
-GET
-
-```
-/api/cba/v1/courses/{course_key}/
-```
-
-Additional fields
-
-- full_description
-- course_runs
-- instructors
-- outcomes
-- prerequisites
-- syllabus
-- seo
-- media
-
----
-
-# Programs
-
-GET
-
-```
-/api/cba/v1/programs/
+```bash
+python manage.py import_cba_catalog /path/to/catalog.json \
+  --partner cba \
+  --validate-only
 ```
 
-Program object
+Import after the corresponding Studio course shells have synchronized to
+Discovery:
 
-- uuid
-- title
-- subtitle
-- description
-- image_url
-- banner_url
-- organizations
-- subjects
-- courses
-- duration
-- level
-- marketing_url
-
----
-
-# Organizations
-
-GET
-
-```
-/api/cba/v1/organizations/
+```bash
+python manage.py import_cba_catalog /path/to/catalog.json \
+  --partner cba
 ```
 
-Returns all organizations.
+The import is transactional: validation or database errors roll back the entire
+operation. It updates native Discovery descriptions, pacing, syllabus, staff,
+program course relationships, and seats, together with the CBA extension fields.
 
----
-
-# Subjects
-
-GET
-
-```
-/api/cba/v1/subjects/
-```
-
-Returns all subjects.
-
----
-
-# Search
-
-GET
-
-```
-/api/cba/v1/search/
-```
-
-Supported query parameters
-
-- q
-- subject
-- organization
-- page
-- page_size
-
----
-
-# Homepage
-
-GET
-
-```
-/api/cba/v1/homepage/
-```
-
-Returns
-
-- hero
-- featured_courses
-- featured_programs
-- featured_subjects
-- latest_courses
-
----
-
-# Media
-
-GET
-
-```
-/api/cba/v1/media/{id}/
-```
-
-Returns metadata for images and videos.
-
----
-
-# Architecture
-
-Repository
-↓
-
-Service
-↓
-
-Serializer
-↓
-
-View
-↓
-
-REST API
-↓
-
-CBAUI
+The example input is `docs/api/cba_catalog_import.example.json`.

@@ -14,6 +14,9 @@ class CourseRepository:
                 "authoring_organizations",
                 "subjects",
                 "course_runs",
+                "course_runs__cba_catalog",
+                "course_runs__cba_faculty_assignments",
+                "course_runs__cba_faculty_assignments__person",
                 "course_runs__seats",
                 "course_runs__seats__type",
                 "course_runs__seats__currency",
@@ -46,11 +49,15 @@ class CourseRepository:
                 uuid=filters["uuid"]
             )
 
+        if filters.get("catalog_status"):
+            queryset = queryset.filter(
+                course_runs__cba_catalog__catalog_status=filters["catalog_status"]
+            )
+
         return queryset.distinct()[:limit]
 
     def get_by_key(self, course_key):
-        return (
-            self._base_queryset()
-            .filter(key=course_key)
-            .first()
-        )
+        queryset = self._base_queryset()
+        if str(course_key).startswith("course-v1:"):
+            return queryset.filter(course_runs__key=course_key).distinct().first()
+        return queryset.filter(key=course_key).first()

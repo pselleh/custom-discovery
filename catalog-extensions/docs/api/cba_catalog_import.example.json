@@ -1,0 +1,85 @@
+{
+  "people": [
+    {
+      "person_id": "faculty-001",
+      "given_name": "Program",
+      "family_name": "Director",
+      "email": "faculty@example.org",
+      "bio": "Program faculty biography.",
+      "published": true
+    }
+  ],
+  "microcourses": [
+    {
+      "course_key": "course-v1:CBA+ORF101M01C01+2027",
+      "organization": "CBA",
+      "course_number": "ORF101M01C01",
+      "course_run": "2027",
+      "title": "Know When Risk Becomes a Disruption",
+      "pacing": "self_paced",
+      "duration_minutes": 60,
+      "price": "59.00",
+      "currency": "USD",
+      "catalog_status": "waitlist_open",
+      "short_description": "Short catalog description.",
+      "full_description": "Full catalog description.",
+      "learning_outcomes": ["Distinguish a risk event from a disruption."],
+      "course_overview": "Course overview for the catalog.",
+      "syllabus": "Topics, instructional flow, applied practice, reflection, and assessment.",
+      "references": ["ISO 31000:2018", "ISO 22301:2019"],
+      "faculty": [
+        {
+          "person_id": "faculty-001",
+          "role": "instructor",
+          "credentials": "Professional credentials",
+          "display_order": 1
+        }
+      ]
+    }
+  ],
+  "certificate_programs": [
+    {
+      "program_code": "ORF-CP-2027",
+      "organization": "CBA",
+      "title": "Organizational Resilience Foundations Certificate",
+      "subtitle": "Foundational risk and resilience practice",
+      "program_type": "certificate",
+      "marketing_slug": "organizational-resilience-foundations-certificate",
+      "catalog_status": "waitlist_open",
+      "duration_minutes": 60,
+      "price": "59.00",
+      "currency": "USD",
+      "pacing": "self_paced",
+      "short_description": "Short program description.",
+      "full_description": "Full program description.",
+      "learning_outcomes": ["Apply foundational risk and resilience practices."],
+      "course_overview": "Program overview for the catalog.",
+      "syllabus": "An ordered description of the certificate pathway and its learning sequence.",
+      "completion_requirements": "Complete every required microcourse and earn the required passing score on each assessment.",
+      "references": ["ASTM E3502-25", "ISO 31000:2018", "ISO 22301:2019"],
+      "microcourses": [
+        {
+          "course_key": "course-v1:CBA+ORF101M01C01+2027",
+          "sequence": 1,
+          "required": true
+        }
+      ],
+      "program_faculty": [
+        {
+          "person_id": "faculty-001",
+          "role": "program_director",
+          "credentials": "Professional credentials",
+          "display_order": 1,
+          "is_primary": true
+        },
+        {
+          "person_id": "faculty-001",
+          "role": "instructor",
+          "credentials": "Professional credentials",
+          "display_order": 2,
+          "is_primary": false
+        }
+      ]
+    }
+  ]
+}
