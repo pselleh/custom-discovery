@@ -24,8 +24,13 @@ class CourseRepository:
             .order_by("key")
         )
 
-    def list_courses(self, filters=None, limit=100):
+    def list_courses(self, filters=None, limit=100, public_only=True):
         queryset = self._base_queryset()
+
+        if public_only:
+            queryset = queryset.filter(
+                course_runs__cba_catalog__catalog_visibility="public"
+            )
 
         filters = filters or {}
 
@@ -56,8 +61,19 @@ class CourseRepository:
 
         return queryset.distinct()[:limit]
 
-    def get_by_key(self, course_key):
+    def get_by_key(self, course_key, public_only=True):
         queryset = self._base_queryset()
         if str(course_key).startswith("course-v1:"):
-            return queryset.filter(course_runs__key=course_key).distinct().first()
-        return queryset.filter(key=course_key).first()
+            queryset = queryset.filter(course_runs__key=course_key)
+            if public_only:
+                queryset = queryset.filter(
+                    course_runs__key=course_key,
+                    course_runs__cba_catalog__catalog_visibility="public",
+                )
+            return queryset.distinct().first()
+        queryset = queryset.filter(key=course_key)
+        if public_only:
+            queryset = queryset.filter(
+                course_runs__cba_catalog__catalog_visibility="public"
+            )
+        return queryset.distinct().first()

@@ -7,11 +7,12 @@ class CourseService:
     def __init__(self):
         self.repository = CourseRepository()
 
-    def list_courses(self, filters=None, limit=100):
+    def list_courses(self, filters=None, limit=100, public_only=True):
         return self.repository.list_courses(
             filters=filters,
             limit=limit,
+            public_only=public_only,
         )
 
-    def get_course(self, course_key):
-        return self.repository.get_by_key(course_key)
+    def get_course(self, course_key, public_only=True):
+        return self.repository.get_by_key(course_key, public_only=public_only)

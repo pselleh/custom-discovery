@@ -13,8 +13,11 @@ from catalog_extensions.models.program import (
 
 @admin.register(MicrocourseCatalogMetadata)
 class MicrocourseCatalogMetadataAdmin(admin.ModelAdmin):
-    list_display = ("course_run", "duration_minutes", "catalog_status", "modified")
-    list_filter = ("catalog_status",)
+    list_display = (
+        "course_run", "duration_minutes", "catalog_status", "catalog_visibility",
+        "access_scope", "standalone_enrollment_allowed", "modified",
+    )
+    list_filter = ("catalog_status", "catalog_visibility", "access_scope")
     search_fields = ("course_run__key", "course_run__course__title")
 
 
@@ -24,12 +27,14 @@ class CertificateProgramCatalogMetadataAdmin(admin.ModelAdmin):
         "program_code",
         "program",
         "catalog_status",
+        "catalog_visibility",
+        "access_scope",
         "pacing",
         "price",
         "currency",
         "modified",
     )
-    list_filter = ("catalog_status", "currency")
+    list_filter = ("catalog_status", "catalog_visibility", "access_scope", "currency")
     search_fields = ("program_code", "program__title")
 
 

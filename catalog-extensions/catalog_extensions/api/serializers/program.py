@@ -40,6 +40,9 @@ class ProgramSerializer(serializers.Serializer):
     marketing_slug = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
     catalog_status = serializers.SerializerMethodField()
+    catalog_visibility = serializers.SerializerMethodField()
+    access_scope = serializers.SerializerMethodField()
+    access_policy_key = serializers.SerializerMethodField()
     overview = serializers.CharField(read_only=True)
     course_overview = serializers.SerializerMethodField()
     syllabus = serializers.SerializerMethodField()
@@ -76,6 +79,18 @@ class ProgramSerializer(serializers.Serializer):
     def get_catalog_status(self, obj):
         metadata = _metadata(obj)
         return metadata.catalog_status if metadata else "draft"
+
+    def get_catalog_visibility(self, obj):
+        metadata = _metadata(obj)
+        return metadata.catalog_visibility if metadata else "hidden"
+
+    def get_access_scope(self, obj):
+        metadata = _metadata(obj)
+        return metadata.access_scope if metadata else "organization_code"
+
+    def get_access_policy_key(self, obj):
+        metadata = _metadata(obj)
+        return metadata.access_policy_key if metadata else ""
 
     def get_course_overview(self, obj):
         metadata = _metadata(obj)

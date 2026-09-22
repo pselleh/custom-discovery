@@ -5,7 +5,12 @@ from django.db import models
 
 from course_discovery.apps.course_metadata.models import CourseRun, Person, Program
 
-from catalog_extensions.models.course import CatalogStatus, FacultyRole
+from catalog_extensions.models.course import (
+    AccessScope,
+    CatalogStatus,
+    CatalogVisibility,
+    FacultyRole,
+)
 
 
 class CertificateProgramCatalogMetadata(models.Model):
@@ -24,6 +29,27 @@ class CertificateProgramCatalogMetadata(models.Model):
         choices=CatalogStatus.choices,
         default=CatalogStatus.DRAFT,
         db_index=True,
+    )
+    catalog_visibility = models.CharField(
+        max_length=16,
+        choices=CatalogVisibility.choices,
+        default=CatalogVisibility.PUBLIC,
+        db_index=True,
+    )
+    access_scope = models.CharField(
+        max_length=32,
+        choices=(
+            (AccessScope.PUBLIC, "Public"),
+            (AccessScope.ORGANIZATION_CODE, "Organization code"),
+        ),
+        default=AccessScope.PUBLIC,
+        db_index=True,
+    )
+    access_policy_key = models.CharField(
+        max_length=128,
+        blank=True,
+        db_index=True,
+        help_text="Stable Wagtail policy identifier; never store an organization code here.",
     )
     duration_minutes = models.PositiveIntegerField(
         default=60,

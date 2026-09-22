@@ -7,11 +7,12 @@ class ProgramService:
     def __init__(self):
         self.repository = ProgramRepository()
 
-    def list_programs(self, filters=None, limit=100):
+    def list_programs(self, filters=None, limit=100, public_only=True):
         return self.repository.list_programs(
             filters=filters,
             limit=limit,
+            public_only=public_only,
         )
 
-    def get_program(self, uuid):
-        return self.repository.get_by_uuid(uuid)
+    def get_program(self, uuid, public_only=True):
+        return self.repository.get_by_uuid(uuid, public_only=public_only)

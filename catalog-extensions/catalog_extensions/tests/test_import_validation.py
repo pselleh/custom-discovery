@@ -55,3 +55,35 @@ class CatalogImportValidationTests(SimpleTestCase):
         errors = Command()._validate(payload)
         self.assertTrue(any(".syllabus is required" in error for error in errors))
         self.assertTrue(any(".completion_requirements is required" in error for error in errors))
+
+    def test_hidden_listing_requires_nonpublic_access_scope(self):
+        payload = copy.deepcopy(self.payload)
+        payload["microcourses"][0]["catalog_visibility"] = "hidden"
+        errors = Command()._validate(payload)
+        self.assertTrue(any("hidden listings cannot use" in error for error in errors))
+
+    def test_organization_code_access_requires_policy_key(self):
+        payload = copy.deepcopy(self.payload)
+        course = payload["microcourses"][0]
+        course["catalog_visibility"] = "hidden"
+        course["access_scope"] = "organization_code"
+        course["access_policy_key"] = ""
+        errors = Command()._validate(payload)
+        self.assertTrue(any("access_policy_key is required" in error for error in errors))
+
+    def test_hidden_organization_code_course_is_valid(self):
+        payload = copy.deepcopy(self.payload)
+        course = payload["microcourses"][0]
+        course["catalog_visibility"] = "hidden"
+        course["access_scope"] = "organization_code"
+        course["access_policy_key"] = "cba-restricted-risk-2027"
+        self.assertEqual(Command()._validate(payload), [])
+
+    def test_program_only_course_cannot_be_standalone(self):
+        payload = copy.deepcopy(self.payload)
+        course = payload["microcourses"][0]
+        course["catalog_visibility"] = "hidden"
+        course["access_scope"] = "program_only"
+        course["standalone_enrollment_allowed"] = True
+        errors = Command()._validate(payload)
+        self.assertTrue(any("must be false for program_only" in error for error in errors))

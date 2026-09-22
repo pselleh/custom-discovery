@@ -1,6 +1,6 @@
 # CBA Catalog API Specification
 
-Version: 2.0
+Version: 3.0
 
 The public API is read-only. Catalog creation and updates are performed with the
 authenticated Discovery administration interface or the `import_cba_catalog`
@@ -16,6 +16,7 @@ management command.
 | Exact duration, price, currency, waitlist status | Discovery |
 | Certificate programs, sequence, requirements, program faculty | Discovery |
 | Public catalog presentation | Wagtail consuming this API |
+| Organization-code hashes, membership, grants, discounts, permitted products | LMS `orgcode-enterprise` |
 
 Certificate programs are not Studio courses. Their component microcourses are
 created in Studio; program metadata and relationships are maintained in Discovery.
@@ -28,6 +29,10 @@ created in Studio; program metadata and relationships are maintained in Discover
 | `GET /api/cba/v1/courses/{course_key}/` | Implemented |
 | `GET /api/cba/v1/programs/` | Implemented |
 | `GET /api/cba/v1/programs/{uuid}/` | Implemented |
+| `GET /api/cba/v1/internal/courses/` | Implemented; restricted-catalog permission required |
+| `GET /api/cba/v1/internal/courses/{course_key}/` | Implemented; restricted-catalog permission required |
+| `GET /api/cba/v1/internal/programs/` | Implemented; restricted-catalog permission required |
+| `GET /api/cba/v1/internal/programs/{uuid}/` | Implemented; restricted-catalog permission required |
 | `GET /api/cba/v1/organizations/` | Implemented |
 | `GET /api/cba/v1/subjects/` | Implemented |
 | `GET /api/cba/v1/search/` | Not implemented; returns 501 |
@@ -52,6 +57,10 @@ full Studio course-run key such as
 | `price` | decimal string | From the Discovery seat |
 | `currency` | string | Three-letter currency code |
 | `catalog_status` | string | Includes `waitlist_open` |
+| `catalog_visibility` | string | `public` or `hidden` |
+| `access_scope` | string | `public`, `organization_code`, or `program_only` |
+| `access_policy_key` | string | Non-secret Wagtail policy identifier; never an organization code |
+| `standalone_enrollment_allowed` | boolean | False for program-only labs |
 | `short_description` | HTML string | Native Discovery course field |
 | `full_description` | HTML string | Native Discovery course field |
 | `learning_outcomes` | array | Structured catalog outcomes |
@@ -79,6 +88,9 @@ and display order.
 | `price` | decimal string | Program price, if sold as a bundle |
 | `currency` | string | Three-letter currency code |
 | `catalog_status` | string | Includes `waitlist_open` |
+| `catalog_visibility` | string | `public` or `hidden` |
+| `access_scope` | string | `public` or `organization_code` |
+| `access_policy_key` | string | Non-secret Wagtail policy identifier; never an organization code |
 | `learning_outcomes` | array | Program-level outcomes |
 | `course_overview` | HTML string | Program overview |
 | `syllabus` | HTML string | Complete program syllabus |
@@ -111,6 +123,27 @@ and `display_order` controls the order shown by Wagtail.
 While a record is on the waitlist, Studio enrollment should remain closed and
 Wagtail should render the **Join Waitlist** call to action.
 
+## Visibility and organization-code enforcement
+
+Anonymous public endpoints return only records whose `catalog_visibility` is
+`public`. A hidden course or program returns 404 from its anonymous detail
+endpoint. Wagtail uses a dedicated Discovery service account with the
+`catalog_extensions.view_restricted_catalog` permission to query `/internal/`.
+
+Discovery never stores or returns an organization code. The LMS
+`orgcode-enterprise` application stores only salted code hashes and returns the
+signed-in learner's active `access_policy_key`, discount, expiry, and permitted
+course/program IDs. Wagtail displays the union of all public products and the
+private products explicitly permitted by those grants.
+
+Use these combinations:
+
+| Listing type | `catalog_visibility` | `access_scope` | Policy key | Standalone enrollment |
+|---|---|---|---|---|
+| Public microcourse/program | `public` | `public` | empty | allowed |
+| Org-code microcourse/program | `hidden` | `organization_code` | required | allowed after code validation |
+| Certificate-only lab | `hidden` | `program_only` | empty | not allowed |
+
 ## Bulk import
 
 Validate a complete JSON file without changing the database:
@@ -133,4 +166,6 @@ The import is transactional: validation or database errors roll back the entire
 operation. It updates native Discovery descriptions, pacing, syllabus, staff,
 program course relationships, and seats, together with the CBA extension fields.
 
-The example input is `docs/api/cba_catalog_import.example.json`.
+The example input is `docs/api/cba_catalog_import.example.json`. The Studio
+course-shell loader is `studio-tools/import_cba_studio_courses.py` in the
+containing custom-discovery repository.

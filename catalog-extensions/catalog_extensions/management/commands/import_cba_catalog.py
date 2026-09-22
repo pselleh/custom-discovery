@@ -17,7 +17,9 @@ from course_discovery.apps.course_metadata.models import (
 )
 
 from catalog_extensions.models.course import (
+    AccessScope,
     CatalogStatus,
+    CatalogVisibility,
     CourseRunFacultyAssignment,
     FacultyRole,
     MicrocourseCatalogMetadata,
@@ -30,6 +32,8 @@ from catalog_extensions.models.program import (
 
 
 VALID_STATUSES = {value for value, _label in CatalogStatus.choices}
+VALID_VISIBILITIES = {value for value, _label in CatalogVisibility.choices}
+VALID_ACCESS_SCOPES = {value for value, _label in AccessScope.choices}
 VALID_ROLES = {value for value, _label in FacultyRole.choices}
 
 
@@ -87,13 +91,17 @@ class Command(BaseCommand):
         required_course_fields = (
             "course_key", "organization", "course_number", "course_run", "title",
             "pacing", "duration_minutes", "price", "currency", "catalog_status",
+            "catalog_visibility", "access_scope", "access_policy_key",
+            "standalone_enrollment_allowed",
             "short_description", "full_description", "learning_outcomes",
             "course_overview", "syllabus", "references",
         )
         for index, course in enumerate(payload.get("microcourses", []), start=1):
             prefix = f"microcourses[{index}]"
             for field in required_course_fields:
-                if field not in course or course[field] in (None, ""):
+                if field not in course or (
+                    field != "access_policy_key" and course[field] in (None, "")
+                ):
                     errors.append(f"{prefix}.{field} is required.")
             key = course.get("course_key")
             expected = f"course-v1:{course.get('organization')}+{course.get('course_number')}+{course.get('course_run')}"
@@ -109,20 +117,24 @@ class Command(BaseCommand):
         required_program_fields = (
             "program_code", "title", "short_description", "full_description",
             "catalog_status", "duration_minutes", "price", "currency",
-            "pacing",
+            "pacing", "catalog_visibility", "access_scope", "access_policy_key",
             "learning_outcomes", "course_overview", "syllabus",
             "completion_requirements", "references", "microcourses",
         )
         for index, program in enumerate(payload.get("certificate_programs", []), start=1):
             prefix = f"certificate_programs[{index}]"
             for field in required_program_fields:
-                if field not in program or program[field] in (None, ""):
+                if field not in program or (
+                    field != "access_policy_key" and program[field] in (None, "")
+                ):
                     errors.append(f"{prefix}.{field} is required.")
             code = program.get("program_code")
             if code in program_codes:
                 errors.append(f"{prefix}.program_code must be unique.")
             program_codes.add(code)
             self._validate_common(prefix, program, errors)
+            if program.get("access_scope") == AccessScope.PROGRAM_ONLY:
+                errors.append(f"{prefix}.access_scope cannot be program_only for a certificate program.")
             self._validate_faculty(prefix, program.get("program_faculty", []), people_ids, errors)
             sequences = set()
             for item_index, item in enumerate(program.get("microcourses", []), start=1):
@@ -140,6 +152,35 @@ class Command(BaseCommand):
         status = item.get("catalog_status")
         if status and status not in VALID_STATUSES:
             errors.append(f"{prefix}.catalog_status must be one of {sorted(VALID_STATUSES)}.")
+        visibility = item.get("catalog_visibility")
+        access_scope = item.get("access_scope")
+        policy_key = item.get("access_policy_key", "")
+        if visibility and visibility not in VALID_VISIBILITIES:
+            errors.append(
+                f"{prefix}.catalog_visibility must be one of {sorted(VALID_VISIBILITIES)}."
+            )
+        if access_scope and access_scope not in VALID_ACCESS_SCOPES:
+            errors.append(f"{prefix}.access_scope must be one of {sorted(VALID_ACCESS_SCOPES)}.")
+        if visibility == CatalogVisibility.PUBLIC and access_scope != AccessScope.PUBLIC:
+            errors.append(f"{prefix}: public listings must use access_scope='public'.")
+        if visibility == CatalogVisibility.HIDDEN and access_scope == AccessScope.PUBLIC:
+            errors.append(f"{prefix}: hidden listings cannot use access_scope='public'.")
+        if access_scope == AccessScope.ORGANIZATION_CODE and not policy_key:
+            errors.append(
+                f"{prefix}.access_policy_key is required for organization_code access."
+            )
+        if access_scope != AccessScope.ORGANIZATION_CODE and policy_key:
+            errors.append(
+                f"{prefix}.access_policy_key must be empty unless access_scope is organization_code."
+            )
+        if "standalone_enrollment_allowed" in item:
+            standalone = item["standalone_enrollment_allowed"]
+            if not isinstance(standalone, bool):
+                errors.append(f"{prefix}.standalone_enrollment_allowed must be a boolean.")
+            elif access_scope == AccessScope.PROGRAM_ONLY and standalone:
+                errors.append(
+                    f"{prefix}.standalone_enrollment_allowed must be false for program_only access."
+                )
         if "duration_minutes" in item and (
             not isinstance(item["duration_minutes"], int) or item["duration_minutes"] < 1
         ):
@@ -210,6 +251,10 @@ class Command(BaseCommand):
                 defaults={
                     "duration_minutes": record["duration_minutes"],
                     "catalog_status": record["catalog_status"],
+                    "catalog_visibility": record["catalog_visibility"],
+                    "access_scope": record["access_scope"],
+                    "access_policy_key": record["access_policy_key"],
+                    "standalone_enrollment_allowed": record["standalone_enrollment_allowed"],
                     "course_overview": record["course_overview"],
                     "learning_outcomes": record["learning_outcomes"],
                     "references": record["references"],
@@ -284,6 +329,9 @@ class Command(BaseCommand):
                     "short_description": record["short_description"],
                     "full_description": record["full_description"],
                     "catalog_status": record["catalog_status"],
+                    "catalog_visibility": record["catalog_visibility"],
+                    "access_scope": record["access_scope"],
+                    "access_policy_key": record["access_policy_key"],
                     "duration_minutes": record["duration_minutes"],
                     "price": Decimal(str(record["price"])),
                     "currency": record["currency"].upper(),

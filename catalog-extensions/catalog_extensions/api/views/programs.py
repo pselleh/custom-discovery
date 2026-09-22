@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from catalog_extensions.api.pagination import CBAPagination
+from catalog_extensions.api.permissions import HasRestrictedCatalogAccess
 from catalog_extensions.api.serializers import ProgramSerializer
 from catalog_extensions.services.program_service import ProgramService
 
@@ -61,3 +62,35 @@ class ProgramDetailView(APIView):
         serializer = ProgramSerializer(program)
 
         return Response(serializer.data)
+
+
+class InternalProgramListView(ProgramListView):
+    """Authenticated Wagtail endpoint that can return hidden catalog records."""
+
+    permission_classes = [HasRestrictedCatalogAccess]
+
+    def get(self, request):
+        filters = {
+            "organization": request.query_params.get("organization"),
+            "title": request.query_params.get("title"),
+            "uuid": request.query_params.get("uuid"),
+            "program_code": request.query_params.get("program_code"),
+            "catalog_status": request.query_params.get("catalog_status"),
+        }
+        queryset = ProgramService().list_programs(filters=filters, public_only=False)
+        paginator = CBAPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        return paginator.get_paginated_response(ProgramSerializer(page, many=True).data)
+
+
+class InternalProgramDetailView(ProgramDetailView):
+    permission_classes = [HasRestrictedCatalogAccess]
+
+    def get(self, request, uuid):
+        program = ProgramService().get_program(uuid, public_only=False)
+        if not program:
+            return Response(
+                {"code": "PROGRAM_NOT_FOUND", "message": "Program does not exist."},
+                status=404,
+            )
+        return Response(ProgramSerializer(program).data)
