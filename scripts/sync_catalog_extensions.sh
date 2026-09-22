@@ -10,6 +10,7 @@ echo "to:"
 echo "  $DST"
 
 rsync -av --delete \
+  --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
   --exclude='.git' \
   --exclude='*.egg-info' \
   --exclude='__pycache__' \
