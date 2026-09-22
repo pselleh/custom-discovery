@@ -9,7 +9,7 @@ echo "  $SRC"
 echo "to:"
 echo "  $DST"
 
-rsync -av --delete \
+rsync -av --delete --delete-excluded \
   --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
   --exclude='.git' \
   --exclude='*.egg-info' \
