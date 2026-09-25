@@ -199,3 +199,19 @@ controlled taxonomy.
 The example input is `docs/api/cba_catalog_import.example.json`. The Studio
 course-shell loader is `studio-tools/import_cba_studio_courses.py` in the
 containing custom-discovery repository.
+
+## Certificate program type prerequisite
+
+Certificate-program records use the Discovery program-type slug supplied in
+`program_type`. When the field is omitted, the importer uses `certificate`.
+
+Catalog Extensions migration
+`0005_seed_certificate_program_type` installs the controlled Discovery
+reference record:
+
+- Name: `Certificate`
+- Slug: `certificate`
+
+All Catalog Extensions migrations must be applied before importing certificate
+programs. The importer stops without making partial catalog changes when the
+requested program type is unavailable.

@@ -460,7 +460,23 @@ class Command(BaseCommand):
             if metadata:
                 program = metadata.program
             else:
-                program_type = ProgramType.objects.get(slug=record.get("program_type", "certificate"))
+                program_type_slug = record.get(
+                    "program_type",
+                    "certificate",
+                )
+
+                try:
+                    program_type = ProgramType.objects.get(
+                        slug=program_type_slug,
+                    )
+                except ProgramType.DoesNotExist as exc:
+                    raise CommandError(
+                        "Discovery ProgramType "
+                        f"{program_type_slug!r} does not exist. "
+                        "Apply all Catalog Extensions migrations "
+                        "before importing certificate programs."
+                    ) from exc
+
                 program = Program.objects.create(
                     partner=partner,
                     type=program_type,
@@ -535,10 +551,24 @@ class Command(BaseCommand):
 
     def _replace_program_faculty(self, program, assignments, people):
         ProgramFacultyAssignment.objects.filter(program=program).delete()
-        program.instructor_ordering.clear()
+
+        ordered_people = []
+        seen_person_ids = set()
+
+        for item in assignments:
+            person = people[item["person_id"]]
+
+            if person.pk not in seen_person_ids:
+                ordered_people.append(person)
+                seen_person_ids.add(person.pk)
+
+        # A person can hold multiple program roles, but Discovery's
+        # instructor_ordering relationship permits each person once.
+        # Verawood's sorted-M2M signal also requires one set() call.
+        program.instructor_ordering.set(ordered_people)
+
         for index, item in enumerate(assignments):
             person = people[item["person_id"]]
-            program.instructor_ordering.add(person)
             ProgramFacultyAssignment.objects.create(
                 program=program,
                 person=person,
