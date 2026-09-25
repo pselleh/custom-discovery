@@ -1,3 +1,4 @@
+from .category import *
 from .course import *
 from .program import *
 from .organization import *

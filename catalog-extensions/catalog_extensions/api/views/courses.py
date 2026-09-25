@@ -21,6 +21,7 @@ class CourseListView(APIView):
             "title": request.query_params.get("title"),
             "uuid": request.query_params.get("uuid"),
             "catalog_status": request.query_params.get("catalog_status"),
+            "catalog_category": request.query_params.get("catalog_category"),
         }
 
         queryset = CourseService().list_courses(
@@ -79,6 +80,7 @@ class InternalCourseListView(CourseListView):
             "title": request.query_params.get("title"),
             "uuid": request.query_params.get("uuid"),
             "catalog_status": request.query_params.get("catalog_status"),
+            "catalog_category": request.query_params.get("catalog_category"),
         }
         queryset = CourseService().list_courses(filters=filters, public_only=False)
         paginator = CBAPagination()

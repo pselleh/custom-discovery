@@ -12,10 +12,14 @@ class ProgramRepository:
                 "authoring_organizations",
                 "courses",
                 "cba_catalog",
+                "cba_catalog__primary_catalog_category",
+                "cba_catalog__catalog_categories",
                 "cba_course_requirements",
                 "cba_course_requirements__course_run",
                 "cba_course_requirements__course_run__course",
                 "cba_course_requirements__course_run__cba_catalog",
+                "cba_course_requirements__course_run__cba_catalog__primary_catalog_category",
+                "cba_course_requirements__course_run__cba_catalog__catalog_categories",
                 "cba_course_requirements__course_run__cba_faculty_assignments",
                 "cba_course_requirements__course_run__cba_faculty_assignments__person",
                 "cba_course_requirements__course_run__seats",
@@ -31,6 +35,8 @@ class ProgramRepository:
                 # CourseRun relationships
                 "courses__course_runs",
                 "courses__course_runs__cba_catalog",
+                "courses__course_runs__cba_catalog__primary_catalog_category",
+                "courses__course_runs__cba_catalog__catalog_categories",
                 "courses__course_runs__cba_faculty_assignments",
                 "courses__course_runs__cba_faculty_assignments__person",
                 "courses__course_runs__seats",
@@ -71,6 +77,14 @@ class ProgramRepository:
         if filters.get("catalog_status"):
             queryset = queryset.filter(
                 cba_catalog__catalog_status=filters["catalog_status"]
+            )
+
+        if filters.get("catalog_category"):
+            queryset = queryset.filter(
+                cba_catalog__catalog_categories__key=(
+                    filters["catalog_category"]
+                ),
+                cba_catalog__catalog_categories__is_active=True,
             )
 
         return queryset.distinct()[:limit]

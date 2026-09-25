@@ -21,6 +21,18 @@ class CertificateProgramCatalogMetadata(models.Model):
         on_delete=models.CASCADE,
         related_name="cba_catalog",
     )
+    primary_catalog_category = models.ForeignKey(
+        "catalog_extensions.CatalogCategory",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="primary_certificate_programs",
+    )
+    catalog_categories = models.ManyToManyField(
+        "catalog_extensions.CatalogCategory",
+        blank=True,
+        related_name="certificate_programs",
+    )
     program_code = models.CharField(max_length=64, unique=True, db_index=True)
     short_description = models.TextField(blank=True)
     full_description = models.TextField(blank=True)

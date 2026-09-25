@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from catalog_extensions.models.category import CatalogCategory
 from catalog_extensions.models.course import (
     CourseRunFacultyAssignment,
     MicrocourseCatalogMetadata,
@@ -11,14 +12,53 @@ from catalog_extensions.models.program import (
 )
 
 
+@admin.register(CatalogCategory)
+class CatalogCategoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "key",
+        "name",
+        "display_order",
+        "is_active",
+        "modified",
+    )
+    list_filter = ("is_active",)
+    search_fields = (
+        "key",
+        "name",
+        "description",
+    )
+    ordering = (
+        "display_order",
+        "name",
+    )
+
+
 @admin.register(MicrocourseCatalogMetadata)
 class MicrocourseCatalogMetadataAdmin(admin.ModelAdmin):
     list_display = (
-        "course_run", "duration_minutes", "catalog_status", "catalog_visibility",
-        "access_scope", "standalone_enrollment_allowed", "modified",
+        "course_run",
+        "primary_catalog_category",
+        "duration_minutes",
+        "catalog_status",
+        "catalog_visibility",
+        "access_scope",
+        "standalone_enrollment_allowed",
+        "modified",
     )
-    list_filter = ("catalog_status", "catalog_visibility", "access_scope")
-    search_fields = ("course_run__key", "course_run__course__title")
+    list_filter = (
+        "catalog_status",
+        "catalog_visibility",
+        "access_scope",
+        "primary_catalog_category",
+        "catalog_categories",
+    )
+    search_fields = (
+        "course_run__key",
+        "course_run__course__title",
+        "primary_catalog_category__key",
+        "catalog_categories__key",
+    )
+    filter_horizontal = ("catalog_categories",)
 
 
 @admin.register(CertificateProgramCatalogMetadata)
@@ -26,6 +66,7 @@ class CertificateProgramCatalogMetadataAdmin(admin.ModelAdmin):
     list_display = (
         "program_code",
         "program",
+        "primary_catalog_category",
         "catalog_status",
         "catalog_visibility",
         "access_scope",
@@ -34,26 +75,69 @@ class CertificateProgramCatalogMetadataAdmin(admin.ModelAdmin):
         "currency",
         "modified",
     )
-    list_filter = ("catalog_status", "catalog_visibility", "access_scope", "currency")
-    search_fields = ("program_code", "program__title")
+    list_filter = (
+        "catalog_status",
+        "catalog_visibility",
+        "access_scope",
+        "currency",
+        "primary_catalog_category",
+        "catalog_categories",
+    )
+    search_fields = (
+        "program_code",
+        "program__title",
+        "primary_catalog_category__key",
+        "catalog_categories__key",
+    )
+    filter_horizontal = ("catalog_categories",)
 
 
 @admin.register(ProgramCourseRequirement)
 class ProgramCourseRequirementAdmin(admin.ModelAdmin):
-    list_display = ("program", "sequence", "course_run", "required")
+    list_display = (
+        "program",
+        "sequence",
+        "course_run",
+        "required",
+    )
     list_filter = ("required",)
-    search_fields = ("program__title", "course_run__key")
+    search_fields = (
+        "program__title",
+        "course_run__key",
+    )
 
 
 @admin.register(ProgramFacultyAssignment)
 class ProgramFacultyAssignmentAdmin(admin.ModelAdmin):
-    list_display = ("program", "display_order", "person", "role", "is_primary")
-    list_filter = ("role", "is_primary")
-    search_fields = ("program__title", "person__given_name", "person__family_name")
+    list_display = (
+        "program",
+        "display_order",
+        "person",
+        "role",
+        "is_primary",
+    )
+    list_filter = (
+        "role",
+        "is_primary",
+    )
+    search_fields = (
+        "program__title",
+        "person__given_name",
+        "person__family_name",
+    )
 
 
 @admin.register(CourseRunFacultyAssignment)
 class CourseRunFacultyAssignmentAdmin(admin.ModelAdmin):
-    list_display = ("course_run", "display_order", "person", "role")
+    list_display = (
+        "course_run",
+        "display_order",
+        "person",
+        "role",
+    )
     list_filter = ("role",)
-    search_fields = ("course_run__key", "person__given_name", "person__family_name")
+    search_fields = (
+        "course_run__key",
+        "person__given_name",
+        "person__family_name",
+    )

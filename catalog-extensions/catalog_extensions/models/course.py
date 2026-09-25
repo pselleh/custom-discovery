@@ -40,6 +40,18 @@ class MicrocourseCatalogMetadata(models.Model):
         on_delete=models.CASCADE,
         related_name="cba_catalog",
     )
+    primary_catalog_category = models.ForeignKey(
+        "catalog_extensions.CatalogCategory",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="primary_microcourses",
+    )
+    catalog_categories = models.ManyToManyField(
+        "catalog_extensions.CatalogCategory",
+        blank=True,
+        related_name="microcourses",
+    )
     duration_minutes = models.PositiveIntegerField(
         default=60,
         validators=[MinValueValidator(1)],

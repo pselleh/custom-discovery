@@ -18,6 +18,7 @@ class ProgramListView(APIView):
             "uuid": request.query_params.get("uuid"),
             "program_code": request.query_params.get("program_code"),
             "catalog_status": request.query_params.get("catalog_status"),
+            "catalog_category": request.query_params.get("catalog_category"),
         }
 
         queryset = ProgramService().list_programs(
@@ -76,6 +77,7 @@ class InternalProgramListView(ProgramListView):
             "uuid": request.query_params.get("uuid"),
             "program_code": request.query_params.get("program_code"),
             "catalog_status": request.query_params.get("catalog_status"),
+            "catalog_category": request.query_params.get("catalog_category"),
         }
         queryset = ProgramService().list_programs(filters=filters, public_only=False)
         paginator = CBAPagination()

@@ -27,10 +27,15 @@
       "standalone_enrollment_allowed": true,
       "short_description": "Short catalog description.",
       "full_description": "Full catalog description.",
-      "learning_outcomes": ["Distinguish a risk event from a disruption."],
+      "learning_outcomes": [
+        "Distinguish a risk event from a disruption."
+      ],
       "course_overview": "Course overview for the catalog.",
       "syllabus": "Topics, instructional flow, applied practice, reflection, and assessment.",
-      "references": ["ISO 31000:2018", "ISO 22301:2019"],
+      "references": [
+        "ISO 31000:2018",
+        "ISO 22301:2019"
+      ],
       "faculty": [
         {
           "person_id": "faculty-001",
@@ -38,6 +43,10 @@
           "credentials": "Professional credentials",
           "display_order": 1
         }
+      ],
+      "primary_catalog_category": "organizational-resilience",
+      "catalog_categories": [
+        "organizational-resilience"
       ]
     }
   ],
@@ -59,11 +68,17 @@
       "pacing": "self_paced",
       "short_description": "Short program description.",
       "full_description": "Full program description.",
-      "learning_outcomes": ["Apply foundational risk and resilience practices."],
+      "learning_outcomes": [
+        "Apply foundational risk and resilience practices."
+      ],
       "course_overview": "Program overview for the catalog.",
       "syllabus": "An ordered description of the certificate pathway and its learning sequence.",
       "completion_requirements": "Complete every required microcourse and earn the required passing score on each assessment.",
-      "references": ["ASTM E3502-25", "ISO 31000:2018", "ISO 22301:2019"],
+      "references": [
+        "ASTM E3502-25",
+        "ISO 31000:2018",
+        "ISO 22301:2019"
+      ],
       "microcourses": [
         {
           "course_key": "course-v1:CBA+ORF101M01C01+2027",
@@ -86,6 +101,10 @@
           "display_order": 2,
           "is_primary": false
         }
+      ],
+      "primary_catalog_category": "organizational-resilience",
+      "catalog_categories": [
+        "organizational-resilience"
       ]
     }
   ]

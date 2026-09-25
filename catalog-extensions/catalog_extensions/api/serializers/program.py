@@ -17,6 +17,27 @@ def _metadata(program):
         return None
 
 
+def _primary_category_key(metadata):
+    category = (
+        metadata.primary_catalog_category
+        if metadata
+        else None
+    )
+
+    return category.key if category and category.is_active else ""
+
+
+def _catalog_category_keys(metadata):
+    if not metadata:
+        return []
+
+    return [
+        category.key
+        for category in metadata.catalog_categories.all()
+        if category.is_active
+    ]
+
+
 class ProgramFacultyAssignmentSerializer(FacultyAssignmentSerializer):
     is_primary = serializers.BooleanField(read_only=True)
 
@@ -43,6 +64,8 @@ class ProgramSerializer(serializers.Serializer):
     catalog_visibility = serializers.SerializerMethodField()
     access_scope = serializers.SerializerMethodField()
     access_policy_key = serializers.SerializerMethodField()
+    primary_catalog_category = serializers.SerializerMethodField()
+    catalog_categories = serializers.SerializerMethodField()
     overview = serializers.CharField(read_only=True)
     course_overview = serializers.SerializerMethodField()
     syllabus = serializers.SerializerMethodField()
@@ -91,6 +114,16 @@ class ProgramSerializer(serializers.Serializer):
     def get_access_policy_key(self, obj):
         metadata = _metadata(obj)
         return metadata.access_policy_key if metadata else ""
+
+    def get_primary_catalog_category(self, obj):
+        return _primary_category_key(
+            _metadata(obj)
+        )
+
+    def get_catalog_categories(self, obj):
+        return _catalog_category_keys(
+            _metadata(obj)
+        )
 
     def get_course_overview(self, obj):
         metadata = _metadata(obj)

@@ -16,6 +16,7 @@ from course_discovery.apps.course_metadata.models import (
     SeatType,
 )
 
+from catalog_extensions.models.category import CatalogCategory
 from catalog_extensions.models.course import (
     AccessScope,
     CatalogStatus,
@@ -35,6 +36,19 @@ VALID_STATUSES = {value for value, _label in CatalogStatus.choices}
 VALID_VISIBILITIES = {value for value, _label in CatalogVisibility.choices}
 VALID_ACCESS_SCOPES = {value for value, _label in AccessScope.choices}
 VALID_ROLES = {value for value, _label in FacultyRole.choices}
+
+VALID_CATALOG_CATEGORIES = {
+    "organizational-resilience",
+    "enterprise-risk-management",
+    "risk-analysis-and-assessment",
+    "risk-intelligence-and-emerging-risk",
+    "business-continuity-and-crisis-management",
+    "leadership-governance-and-oversight",
+    "audit-assurance-and-forensics",
+    "sector-specific-enterprise-risk-management",
+    "strategic-environmental-and-threat-analysis",
+    "quality-and-integrated-management-systems",
+}
 
 
 class Command(BaseCommand):
@@ -65,10 +79,54 @@ class Command(BaseCommand):
         except Partner.DoesNotExist as exc:
             raise CommandError(f"Discovery partner {options['partner']!r} does not exist.") from exc
 
+        requested_category_keys = set()
+
+        for section in (
+            "microcourses",
+            "certificate_programs",
+        ):
+            for record in payload.get(section, []):
+                requested_category_keys.update(
+                    record["catalog_categories"]
+                )
+
+        category_lookup = {
+            category.key: category
+            for category in CatalogCategory.objects.filter(
+                key__in=requested_category_keys,
+                is_active=True,
+            )
+        }
+
+        missing_category_keys = sorted(
+            requested_category_keys
+            - set(category_lookup)
+        )
+
+        if missing_category_keys:
+            raise CommandError(
+                "Active catalog-category records are "
+                "missing from Discovery: "
+                + ", ".join(missing_category_keys)
+            )
+
         with transaction.atomic():
-            people = self._import_people(payload.get("people", []), partner)
-            course_runs = self._import_microcourses(payload.get("microcourses", []), people)
-            self._import_programs(payload.get("certificate_programs", []), partner, people, course_runs)
+            people = self._import_people(
+                payload.get("people", []),
+                partner,
+            )
+            course_runs = self._import_microcourses(
+                payload.get("microcourses", []),
+                people,
+                category_lookup,
+            )
+            self._import_programs(
+                payload.get("certificate_programs", []),
+                partner,
+                people,
+                course_runs,
+                category_lookup,
+            )
 
         self.stdout.write(self.style.SUCCESS("CBA catalog import completed."))
 
@@ -92,6 +150,7 @@ class Command(BaseCommand):
             "course_key", "organization", "course_number", "course_run", "title",
             "pacing", "duration_minutes", "price", "currency", "catalog_status",
             "catalog_visibility", "access_scope", "access_policy_key",
+            "primary_catalog_category", "catalog_categories",
             "standalone_enrollment_allowed",
             "short_description", "full_description", "learning_outcomes",
             "course_overview", "syllabus", "references",
@@ -118,6 +177,7 @@ class Command(BaseCommand):
             "program_code", "title", "short_description", "full_description",
             "catalog_status", "duration_minutes", "price", "currency",
             "pacing", "catalog_visibility", "access_scope", "access_policy_key",
+            "primary_catalog_category", "catalog_categories",
             "learning_outcomes", "course_overview", "syllabus",
             "completion_requirements", "references", "microcourses",
         )
@@ -173,6 +233,78 @@ class Command(BaseCommand):
             errors.append(
                 f"{prefix}.access_policy_key must be empty unless access_scope is organization_code."
             )
+        primary_category = item.get(
+            "primary_catalog_category"
+        )
+        category_values = item.get(
+            "catalog_categories"
+        )
+
+        if (
+            not isinstance(primary_category, str)
+            or not primary_category
+        ):
+            errors.append(
+                f"{prefix}.primary_catalog_category "
+                "must be a nonempty string."
+            )
+
+        if (
+            not isinstance(category_values, list)
+            or not category_values
+        ):
+            errors.append(
+                f"{prefix}.catalog_categories "
+                "must be a nonempty array."
+            )
+        else:
+            string_categories = [
+                category
+                for category in category_values
+                if isinstance(category, str)
+                and category
+            ]
+
+            if len(string_categories) != len(
+                category_values
+            ):
+                errors.append(
+                    f"{prefix}.catalog_categories values "
+                    "must be nonempty strings."
+                )
+
+            if len(string_categories) != len(
+                set(string_categories)
+            ):
+                errors.append(
+                    f"{prefix}.catalog_categories "
+                    "must not contain duplicates."
+                )
+
+            if (
+                isinstance(primary_category, str)
+                and primary_category
+                and primary_category
+                not in string_categories
+            ):
+                errors.append(
+                    f"{prefix}.primary_catalog_category "
+                    "must also occur in catalog_categories."
+                )
+
+            unknown_categories = sorted(
+                set(string_categories)
+                - VALID_CATALOG_CATEGORIES
+            )
+
+            if unknown_categories:
+                errors.append(
+                    f"{prefix}.catalog_categories contains "
+                    "unknown values: "
+                    + ", ".join(unknown_categories)
+                    + "."
+                )
+
         if "standalone_enrollment_allowed" in item:
             standalone = item["standalone_enrollment_allowed"]
             if not isinstance(standalone, bool):
@@ -225,7 +357,12 @@ class Command(BaseCommand):
             result[record["person_id"]] = person
         return result
 
-    def _import_microcourses(self, records, people):
+    def _import_microcourses(
+        self,
+        records,
+        people,
+        category_lookup,
+    ):
         result = {}
         for record in records:
             try:
@@ -246,21 +383,38 @@ class Command(BaseCommand):
 
             course_run.pacing_type = record["pacing"]
             course_run.save()
-            MicrocourseCatalogMetadata.objects.update_or_create(
-                course_run=course_run,
-                defaults={
-                    "duration_minutes": record["duration_minutes"],
-                    "catalog_status": record["catalog_status"],
-                    "catalog_visibility": record["catalog_visibility"],
-                    "access_scope": record["access_scope"],
-                    "access_policy_key": record["access_policy_key"],
-                    "standalone_enrollment_allowed": record["standalone_enrollment_allowed"],
-                    "course_overview": record["course_overview"],
-                    "learning_outcomes": record["learning_outcomes"],
-                    "references": record["references"],
-                },
+            metadata, _created = (
+                MicrocourseCatalogMetadata.objects.update_or_create(
+                    course_run=course_run,
+                    defaults={
+                        "primary_catalog_category": category_lookup[
+                            record["primary_catalog_category"]
+                        ],
+                        "duration_minutes": record["duration_minutes"],
+                        "catalog_status": record["catalog_status"],
+                        "catalog_visibility": record["catalog_visibility"],
+                        "access_scope": record["access_scope"],
+                        "access_policy_key": record["access_policy_key"],
+                        "standalone_enrollment_allowed": record["standalone_enrollment_allowed"],
+                        "course_overview": record["course_overview"],
+                        "learning_outcomes": record["learning_outcomes"],
+                        "references": record["references"],
+                    },
+                )
             )
-            self._upsert_seat(course_run, record["price"], record["currency"])
+
+            metadata.catalog_categories.set(
+                [
+                    category_lookup[key]
+                    for key in record["catalog_categories"]
+                ]
+            )
+
+            self._upsert_seat(
+                course_run,
+                record["price"],
+                record["currency"],
+            )
             self._replace_course_faculty(course_run, record.get("faculty", []), people)
             result[record["course_key"]] = course_run
         return result
@@ -290,7 +444,14 @@ class Command(BaseCommand):
                 display_order=item.get("display_order", index),
             )
 
-    def _import_programs(self, records, partner, people, course_runs):
+    def _import_programs(
+        self,
+        records,
+        partner,
+        people,
+        course_runs,
+        category_lookup,
+    ):
         organization_cache = {}
         for record in records:
             metadata = CertificateProgramCatalogMetadata.objects.filter(
@@ -322,28 +483,43 @@ class Command(BaseCommand):
                 )
             program.authoring_organizations.set([organization_cache[organization_key]])
 
-            CertificateProgramCatalogMetadata.objects.update_or_create(
-                program=program,
-                defaults={
-                    "program_code": record["program_code"],
-                    "short_description": record["short_description"],
-                    "full_description": record["full_description"],
-                    "catalog_status": record["catalog_status"],
-                    "catalog_visibility": record["catalog_visibility"],
-                    "access_scope": record["access_scope"],
-                    "access_policy_key": record["access_policy_key"],
-                    "duration_minutes": record["duration_minutes"],
-                    "price": Decimal(str(record["price"])),
-                    "currency": record["currency"].upper(),
-                    "pacing": record["pacing"],
-                    "course_overview": record["course_overview"],
-                    "syllabus": record["syllabus"],
-                    "completion_requirements": record["completion_requirements"],
-                    "learning_outcomes": record["learning_outcomes"],
-                    "references": record["references"],
-                },
+            metadata, _created = (
+                CertificateProgramCatalogMetadata.objects.update_or_create(
+                    program=program,
+                    defaults={
+                        "primary_catalog_category": category_lookup[
+                            record["primary_catalog_category"]
+                        ],
+                        "program_code": record["program_code"],
+                        "short_description": record["short_description"],
+                        "full_description": record["full_description"],
+                        "catalog_status": record["catalog_status"],
+                        "catalog_visibility": record["catalog_visibility"],
+                        "access_scope": record["access_scope"],
+                        "access_policy_key": record["access_policy_key"],
+                        "duration_minutes": record["duration_minutes"],
+                        "price": Decimal(str(record["price"])),
+                        "currency": record["currency"].upper(),
+                        "pacing": record["pacing"],
+                        "course_overview": record["course_overview"],
+                        "syllabus": record["syllabus"],
+                        "completion_requirements": record["completion_requirements"],
+                        "learning_outcomes": record["learning_outcomes"],
+                        "references": record["references"],
+                    },
+                )
             )
-            ProgramCourseRequirement.objects.filter(program=program).delete()
+
+            metadata.catalog_categories.set(
+                [
+                    category_lookup[key]
+                    for key in record["catalog_categories"]
+                ]
+            )
+
+            ProgramCourseRequirement.objects.filter(
+                program=program
+            ).delete()
             ordered_courses = []
             for item in sorted(record["microcourses"], key=lambda value: value["sequence"]):
                 course_run = course_runs[item["course_key"]]

@@ -2,10 +2,12 @@
 
 This Django application extends Open edX Discovery with the CBA fields required
 by the Wagtail catalog. It supports microcourses, certificate programs, ordered
-program pathways, exact duration, waitlist state, structured outcomes and
-references, syllabi, completion requirements, and multiple faculty members.
-Version 0.3.0 also separates public catalog discovery from restricted access.
-Organization codes and learner grants remain in the LMS `orgcode-enterprise`
+program pathways, exact duration, waitlist state, controlled catalog categories,
+structured outcomes and references, syllabi, completion requirements, and
+multiple faculty members. Version 0.4.0 adds primary and secondary catalog
+categories and category filtering for public and restricted Wagtail listings.
+Public catalog discovery remains separate from restricted access. Organization
+codes and learner grants remain in the LMS `orgcode-enterprise`
 application; Discovery stores only a non-secret `access_policy_key`.
 
 ## Installation
@@ -43,4 +45,6 @@ The importer intentionally refuses to invent a missing Studio course. This
 prevents a catalog record from claiming that a usable Open edX course exists
 when no corresponding Studio shell has been created.
 
-See `docs/api/CATALOG_API.md` for fields and commands.
+See `docs/api/CATALOG_API.md` for fields and commands and
+`docs/api/CATALOG_CATEGORIES.md` for the controlled taxonomy, bulk-import
+requirements, and Wagtail filtering contract.

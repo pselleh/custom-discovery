@@ -23,6 +23,26 @@ def _catalog_metadata(course_run):
         return None
 
 
+def _primary_category_key(metadata):
+    category = (
+        metadata.primary_catalog_category
+        if metadata
+        else None
+    )
+    return category.key if category and category.is_active else ""
+
+
+def _catalog_category_keys(metadata):
+    if not metadata:
+        return []
+
+    return [
+        category.key
+        for category in metadata.catalog_categories.all()
+        if category.is_active
+    ]
+
+
 def _catalog_run(course):
     advertised = getattr(course, "advertised_course_run", None)
     if advertised:
@@ -79,6 +99,8 @@ class CourseRunSerializer(serializers.Serializer):
     access_scope = serializers.SerializerMethodField()
     access_policy_key = serializers.SerializerMethodField()
     standalone_enrollment_allowed = serializers.SerializerMethodField()
+    primary_catalog_category = serializers.SerializerMethodField()
+    catalog_categories = serializers.SerializerMethodField()
     start = serializers.DateTimeField(read_only=True)
     end = serializers.DateTimeField(read_only=True)
     enrollment_start = serializers.DateTimeField(read_only=True)
@@ -124,6 +146,16 @@ class CourseRunSerializer(serializers.Serializer):
         metadata = _catalog_metadata(obj)
         return metadata.standalone_enrollment_allowed if metadata else False
 
+    def get_primary_catalog_category(self, obj):
+        return _primary_category_key(
+            _catalog_metadata(obj)
+        )
+
+    def get_catalog_categories(self, obj):
+        return _catalog_category_keys(
+            _catalog_metadata(obj)
+        )
+
     def get_duration_minutes(self, obj):
         metadata = _catalog_metadata(obj)
         return metadata.duration_minutes if metadata else None
@@ -168,6 +200,8 @@ class CourseListSerializer(serializers.Serializer):
     access_scope = serializers.SerializerMethodField()
     access_policy_key = serializers.SerializerMethodField()
     standalone_enrollment_allowed = serializers.SerializerMethodField()
+    primary_catalog_category = serializers.SerializerMethodField()
+    catalog_categories = serializers.SerializerMethodField()
     image_url = serializers.CharField(read_only=True)
     marketing_url = serializers.CharField(read_only=True)
     organizations = OrganizationSerializer(source="authoring_organizations", many=True, read_only=True)
@@ -228,6 +262,14 @@ class CourseListSerializer(serializers.Serializer):
     def get_standalone_enrollment_allowed(self, obj):
         metadata = _catalog_metadata(self._run(obj))
         return metadata.standalone_enrollment_allowed if metadata else False
+
+    def get_primary_catalog_category(self, obj):
+        metadata = _catalog_metadata(self._run(obj))
+        return _primary_category_key(metadata)
+
+    def get_catalog_categories(self, obj):
+        metadata = _catalog_metadata(self._run(obj))
+        return _catalog_category_keys(metadata)
 
 
 class CourseDetailSerializer(CourseListSerializer):
