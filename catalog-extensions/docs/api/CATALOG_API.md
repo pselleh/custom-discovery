@@ -1,6 +1,6 @@
 # CBA Catalog API Specification
 
-Version: 4.0
+Version: 5.0
 
 The public API is read-only. Catalog creation and updates are performed with the
 authenticated Discovery administration interface or the `import_cba_catalog`
@@ -12,6 +12,9 @@ management command.
 |---|---|
 | Course key, organization, number, run, title, pacing | Studio, synchronized to Discovery |
 | Course outline and learning content | Studio |
+| Microcourse image asset (`images_course_image.jpg`) | Studio contentstore, synchronized to Discovery |
+| Certificate-program card and banner images | Native Discovery program image fields |
+| Image alternative text | Catalog Extensions metadata in Discovery |
 | Catalog descriptions, syllabus, outcomes, references | Discovery |
 | Exact duration, price, currency, waitlist status | Discovery |
 | Primary and additional catalog categories | Discovery |
@@ -53,6 +56,8 @@ full Studio course-run key such as
 | `course_number` | string | Parsed from `course_key` |
 | `course_run` | string | Parsed from `course_key` |
 | `title` | string | Native course title |
+| `image_url` | URL string | Native synchronized Discovery course image URL |
+| `image_alt` | string | Accessible alternative text supplied by the catalog package |
 | `pacing` | string | `self_paced` for CBA microcourses |
 | `duration_minutes` | integer | Exact expected completion time |
 | `price` | decimal string | From the Discovery seat |
@@ -84,6 +89,9 @@ and display order.
 | `program_code` | string | Stable CBA program identifier |
 | `title` | string | Public certificate title |
 | `subtitle` | string | Program subtitle |
+| `card_image` | URL string | Native Discovery program card image URL |
+| `banner_image` | URL string | Native Discovery program banner image URL |
+| `image_alt` | string | Accessible alternative text supplied by the catalog package |
 | `short_description` | string | Card/search copy |
 | `full_description` | HTML string | Detail-page copy |
 | `pacing` | string | Program delivery model |
@@ -190,6 +198,37 @@ python manage.py import_cba_catalog /path/to/catalog.json \
 The import is transactional: validation or database errors roll back the entire
 operation. It updates native Discovery descriptions, pacing, syllabus, staff,
 program course relationships, and seats, together with the CBA extension fields.
+
+Image paths must be relative to the directory containing the catalog JSON.
+Absolute paths, path traversal, missing files, invalid images, and unsupported
+formats are rejected during validation.
+
+Each microcourse record must include:
+
+- `course_image`, using
+  `images/microcourses/<course_number>/images_course_image.jpg`
+- `image_alt`, containing nonempty accessible text of no more than 255
+  characters
+
+The microcourse image must be a valid JPEG and must use Open edX Studio's native
+filename `images_course_image.jpg`. The Discovery importer validates this file;
+the Verawood Studio loader stores it in the Studio contentstore before Discovery
+synchronization produces the native `image_url`.
+
+Each certificate-program record must include:
+
+- `card_image`, conventionally
+  `images/programs/<program_code>/card_image.<ext>`
+- `banner_image`, conventionally
+  `images/programs/<program_code>/banner_image.<ext>`
+- `image_alt`, containing nonempty accessible text of no more than 255
+  characters
+
+Program images may be valid JPEG, PNG, or WebP files. They are stored in
+Discovery's native `Program.card_image` and `Program.banner_image` fields. When
+an image is replaced, the previous stored file is deleted only after the
+database transaction commits successfully. API responses return generated URLs,
+not the package-relative source paths.
 
 Every microcourse and certificate-program record must include
 `primary_catalog_category` and `catalog_categories`. The primary key must also

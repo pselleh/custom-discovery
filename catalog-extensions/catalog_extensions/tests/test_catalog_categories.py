@@ -7,6 +7,7 @@ from django.test import SimpleTestCase
 from catalog_extensions.management.commands.import_cba_catalog import (
     Command,
 )
+from catalog_extensions.tests.catalog_image_test_utils import prepare_catalog_images, remove_catalog_images
 
 
 EXAMPLE_PATH = (
@@ -24,9 +25,20 @@ class CatalogCategoryValidationTests(SimpleTestCase):
         cls.payload = json.loads(
             EXAMPLE_PATH.read_text(encoding="utf-8")
         )
+        cls.command = Command()
+        prepare_catalog_images(
+            cls,
+            cls.command,
+            cls.payload,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        remove_catalog_images(cls)
+        super().tearDownClass()
 
     def test_example_categories_are_valid(self):
-        errors = Command()._validate(
+        errors = self.command._validate(
             copy.deepcopy(self.payload)
         )
 
@@ -38,7 +50,7 @@ class CatalogCategoryValidationTests(SimpleTestCase):
 
         course.pop("primary_catalog_category")
 
-        errors = Command()._validate(payload)
+        errors = self.command._validate(payload)
 
         self.assertTrue(
             any(
@@ -54,7 +66,7 @@ class CatalogCategoryValidationTests(SimpleTestCase):
 
         course.pop("catalog_categories")
 
-        errors = Command()._validate(payload)
+        errors = self.command._validate(payload)
 
         self.assertTrue(
             any(
@@ -77,7 +89,7 @@ class CatalogCategoryValidationTests(SimpleTestCase):
             "organizational-resilience"
         ]
 
-        errors = Command()._validate(payload)
+        errors = self.command._validate(payload)
 
         self.assertTrue(
             any(
@@ -98,7 +110,7 @@ class CatalogCategoryValidationTests(SimpleTestCase):
             "not-a-real-category"
         ]
 
-        errors = Command()._validate(payload)
+        errors = self.command._validate(payload)
 
         self.assertTrue(
             any(
@@ -119,7 +131,7 @@ class CatalogCategoryValidationTests(SimpleTestCase):
             category,
         ]
 
-        errors = Command()._validate(payload)
+        errors = self.command._validate(payload)
 
         self.assertTrue(
             any(
@@ -139,7 +151,7 @@ class CatalogCategoryValidationTests(SimpleTestCase):
             "not-a-real-category"
         ]
 
-        errors = Command()._validate(payload)
+        errors = self.command._validate(payload)
 
         self.assertTrue(
             any(

@@ -76,6 +76,7 @@ class CertificateProgramCatalogMetadata(models.Model):
     currency = models.CharField(max_length=3, default="USD")
     pacing = models.CharField(max_length=32, default="self_paced")
     course_overview = models.TextField(blank=True)
+    image_alt = models.CharField(max_length=255, blank=True)
     syllabus = models.TextField(blank=True)
     completion_requirements = models.TextField(blank=True)
     learning_outcomes = models.JSONField(default=list, blank=True)

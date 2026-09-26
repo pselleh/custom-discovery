@@ -47,7 +47,9 @@
       "primary_catalog_category": "organizational-resilience",
       "catalog_categories": [
         "organizational-resilience"
-      ]
+      ],
+      "course_image": "images/microcourses/ORF101M01C01/images_course_image.jpg",
+      "image_alt": "Know When Risk Becomes a Disruption"
     }
   ],
   "certificate_programs": [
@@ -105,7 +107,10 @@
       "primary_catalog_category": "organizational-resilience",
       "catalog_categories": [
         "organizational-resilience"
-      ]
+      ],
+      "card_image": "images/programs/ORF-CP-2027/card_image.jpg",
+      "banner_image": "images/programs/ORF-CP-2027/banner_image.jpg",
+      "image_alt": "Organizational Resilience Foundations Certificate"
     }
   ]
 }

@@ -4,7 +4,10 @@ This Django application extends Open edX Discovery with the CBA fields required
 by the Wagtail catalog. It supports microcourses, certificate programs, ordered
 program pathways, exact duration, waitlist state, controlled catalog categories,
 structured outcomes and references, syllabi, completion requirements, and
-multiple faculty members. Version 0.4.0 adds primary and secondary catalog
+multiple faculty members. Version 0.5.0 adds validated catalog-image
+package paths, native Discovery certificate-program images, Studio-compatible
+microcourse image declarations, accessible image alternative text, and image
+fields in the catalog API. Version 0.4.0 added primary and secondary catalog
 categories and category filtering for public and restricted Wagtail listings.
 Public catalog discovery remains separate from restricted access. Organization
 codes and learner grants remain in the LMS `orgcode-enterprise`
@@ -40,6 +43,12 @@ service calls use `/api/cba/v1/internal/` when retrieving restricted records.
 5. Have Wagtail consume the read-only `/api/cba/v1/` endpoints.
 6. Have Wagtail obtain the signed-in learner's grants from the LMS and use a
    dedicated service account to read restricted Discovery records.
+
+Image files are supplied inside the same bulk-upload package as the catalog
+JSON. Microcourse images use Studio's native `images_course_image.jpg`
+filename. Certificate-program card and banner images are stored in Discovery's
+native program image fields. Wagtail reads the resulting image URLs and
+`image_alt` values from the catalog API.
 
 The importer intentionally refuses to invent a missing Studio course. This
 prevents a catalog record from claiming that a usable Open edX course exists

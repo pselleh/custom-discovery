@@ -82,6 +82,7 @@ class MicrocourseCatalogMetadata(models.Model):
     )
     standalone_enrollment_allowed = models.BooleanField(default=True)
     course_overview = models.TextField(blank=True)
+    image_alt = models.CharField(max_length=255, blank=True)
     learning_outcomes = models.JSONField(default=list, blank=True)
     references = models.JSONField(default=list, blank=True)
     created = models.DateTimeField(auto_now_add=True)

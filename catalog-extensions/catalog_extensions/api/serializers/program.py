@@ -79,6 +79,7 @@ class ProgramSerializer(serializers.Serializer):
     marketing_url = serializers.CharField(read_only=True)
     banner_image = serializers.SerializerMethodField()
     card_image = serializers.SerializerMethodField()
+    image_alt = serializers.SerializerMethodField()
     organizations = OrganizationSerializer(source="authoring_organizations", many=True, read_only=True)
     subjects = SubjectSerializer(many=True, read_only=True)
     courses = CourseListSerializer(many=True, read_only=True)
@@ -160,6 +161,10 @@ class ProgramSerializer(serializers.Serializer):
     def get_pacing(self, obj):
         metadata = _metadata(obj)
         return metadata.pacing if metadata else None
+
+    def get_image_alt(self, obj):
+        metadata = _metadata(obj)
+        return getattr(metadata, "image_alt", "") if metadata else ""
 
     def get_banner_image(self, obj):
         if obj.banner_image:

@@ -2,8 +2,10 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
+from django.core.files import File
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from PIL import Image, UnidentifiedImageError
 
 from course_discovery.apps.core.models import Currency, Partner
 from course_discovery.apps.course_metadata.models import (
@@ -61,6 +63,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         path = options["catalog_file"]
+        self.catalog_base_dir = path.resolve().parent
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -154,6 +157,7 @@ class Command(BaseCommand):
             "standalone_enrollment_allowed",
             "short_description", "full_description", "learning_outcomes",
             "course_overview", "syllabus", "references",
+            "course_image", "image_alt",
         )
         for index, course in enumerate(payload.get("microcourses", []), start=1):
             prefix = f"microcourses[{index}]"
@@ -170,6 +174,14 @@ class Command(BaseCommand):
                 errors.append(f"{prefix}.course_key must be unique.")
             course_keys.add(key)
             self._validate_common(prefix, course, errors)
+            self._validate_image(
+                prefix,
+                "course_image",
+                course.get("course_image"),
+                errors,
+                required_filename="images_course_image.jpg",
+                allowed_formats={"JPEG"},
+            )
             self._validate_faculty(prefix, course.get("faculty", []), people_ids, errors)
 
         program_codes = set()
@@ -180,6 +192,7 @@ class Command(BaseCommand):
             "primary_catalog_category", "catalog_categories",
             "learning_outcomes", "course_overview", "syllabus",
             "completion_requirements", "references", "microcourses",
+            "card_image", "banner_image", "image_alt",
         )
         for index, program in enumerate(payload.get("certificate_programs", []), start=1):
             prefix = f"certificate_programs[{index}]"
@@ -193,6 +206,20 @@ class Command(BaseCommand):
                 errors.append(f"{prefix}.program_code must be unique.")
             program_codes.add(code)
             self._validate_common(prefix, program, errors)
+            self._validate_image(
+                prefix,
+                "card_image",
+                program.get("card_image"),
+                errors,
+                allowed_formats={"JPEG", "PNG", "WEBP"},
+            )
+            self._validate_image(
+                prefix,
+                "banner_image",
+                program.get("banner_image"),
+                errors,
+                allowed_formats={"JPEG", "PNG", "WEBP"},
+            )
             if program.get("access_scope") == AccessScope.PROGRAM_ONLY:
                 errors.append(f"{prefix}.access_scope cannot be program_only for a certificate program.")
             self._validate_faculty(prefix, program.get("program_faculty", []), people_ids, errors)
@@ -324,9 +351,110 @@ class Command(BaseCommand):
             errors.append(f"{prefix}.price must be a decimal value.")
         if item.get("currency") and len(item["currency"]) != 3:
             errors.append(f"{prefix}.currency must be a three-letter code.")
+        image_alt = item.get("image_alt")
+        if image_alt is not None and (
+            not isinstance(image_alt, str)
+            or not image_alt.strip()
+        ):
+            errors.append(
+                f"{prefix}.image_alt must be a nonempty string."
+            )
+        elif (
+            isinstance(image_alt, str)
+            and len(image_alt) > 255
+        ):
+            errors.append(
+                f"{prefix}.image_alt cannot exceed 255 characters."
+            )
+
         for list_field in ("learning_outcomes", "references"):
             if list_field in item and not isinstance(item[list_field], list):
                 errors.append(f"{prefix}.{list_field} must be an array.")
+
+    def _package_path(self, value):
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("must be a nonempty package-relative path")
+
+        relative_path = Path(value)
+
+        if relative_path.is_absolute():
+            raise ValueError("must be package-relative, not absolute")
+
+        resolved_path = (
+            self.catalog_base_dir / relative_path
+        ).resolve()
+
+        try:
+            resolved_path.relative_to(self.catalog_base_dir)
+        except ValueError as exc:
+            raise ValueError(
+                "must remain inside the catalog package"
+            ) from exc
+
+        return resolved_path
+
+    def _validate_image(
+        self,
+        prefix,
+        field_name,
+        value,
+        errors,
+        required_filename=None,
+        allowed_formats=None,
+    ):
+        try:
+            image_path = self._package_path(value)
+        except ValueError as exc:
+            errors.append(
+                f"{prefix}.{field_name} {exc}."
+            )
+            return
+
+        if (
+            required_filename
+            and image_path.name != required_filename
+        ):
+            errors.append(
+                f"{prefix}.{field_name} must use the native "
+                f"filename {required_filename!r}."
+            )
+
+        if not image_path.is_file():
+            errors.append(
+                f"{prefix}.{field_name} does not exist: "
+                f"{value!r}."
+            )
+            return
+
+        if image_path.stat().st_size < 1:
+            errors.append(
+                f"{prefix}.{field_name} is empty."
+            )
+            return
+
+        try:
+            with Image.open(image_path) as image:
+                image_format = image.format
+                image.verify()
+        except (
+            OSError,
+            UnidentifiedImageError,
+        ) as exc:
+            errors.append(
+                f"{prefix}.{field_name} is not a valid image: "
+                f"{exc}."
+            )
+            return
+
+        if (
+            allowed_formats
+            and image_format not in allowed_formats
+        ):
+            errors.append(
+                f"{prefix}.{field_name} must use one of "
+                f"{sorted(allowed_formats)}; detected "
+                f"{image_format!r}."
+            )
 
     def _validate_faculty(self, prefix, assignments, people_ids, errors):
         for index, assignment in enumerate(assignments, start=1):
@@ -397,6 +525,7 @@ class Command(BaseCommand):
                         "access_policy_key": record["access_policy_key"],
                         "standalone_enrollment_allowed": record["standalone_enrollment_allowed"],
                         "course_overview": record["course_overview"],
+                        "image_alt": record["image_alt"].strip(),
                         "learning_outcomes": record["learning_outcomes"],
                         "references": record["references"],
                     },
@@ -489,6 +618,16 @@ class Command(BaseCommand):
             program.subtitle = record.get("subtitle", "")
             program.overview = record["course_overview"]
             program.total_hours_of_effort = max(1, (record["duration_minutes"] + 59) // 60)
+            self._save_program_image(
+                program,
+                "card_image",
+                record["card_image"],
+            )
+            self._save_program_image(
+                program,
+                "banner_image",
+                record["banner_image"],
+            )
             program.save()
 
             organization_key = record.get("organization", "CBA")
@@ -518,6 +657,7 @@ class Command(BaseCommand):
                         "currency": record["currency"].upper(),
                         "pacing": record["pacing"],
                         "course_overview": record["course_overview"],
+                        "image_alt": record["image_alt"].strip(),
                         "syllabus": record["syllabus"],
                         "completion_requirements": record["completion_requirements"],
                         "learning_outcomes": record["learning_outcomes"],
@@ -548,6 +688,33 @@ class Command(BaseCommand):
                 )
             program.courses.set(ordered_courses)
             self._replace_program_faculty(program, record.get("program_faculty", []), people)
+
+    def _save_program_image(
+        self,
+        program,
+        field_name,
+        relative_path,
+    ):
+        source_path = self._package_path(relative_path)
+        field = getattr(program, field_name)
+        previous_name = field.name
+        storage = field.storage
+
+        with source_path.open("rb") as source_file:
+            field.save(
+                source_path.name,
+                File(source_file),
+                save=False,
+            )
+
+        replacement_name = field.name
+
+        if previous_name and previous_name != replacement_name:
+            transaction.on_commit(
+                lambda name=previous_name, backend=storage: (
+                    backend.delete(name)
+                )
+            )
 
     def _replace_program_faculty(self, program, assignments, people):
         ProgramFacultyAssignment.objects.filter(program=program).delete()

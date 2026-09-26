@@ -43,6 +43,7 @@ def course_metadata(primary, *categories):
         access_policy_key="",
         standalone_enrollment_allowed=True,
         duration_minutes=60,
+        image_alt="Microcourse catalog image",
         learning_outcomes=[],
         course_overview="",
         references=[],
@@ -104,6 +105,7 @@ def program_metadata(primary, *categories):
         price=Decimal("590.00"),
         currency="USD",
         pacing="self_paced",
+        image_alt="Certificate program catalog image",
     )
 
 
@@ -164,6 +166,10 @@ class CatalogCategorySerializerTests(SimpleTestCase):
                 "business-continuity-and-crisis-management",
             ],
         )
+        self.assertEqual(
+            data["image_alt"],
+            "Microcourse catalog image",
+        )
 
     def test_course_list_response_contains_categories(self):
         metadata = course_metadata(
@@ -210,6 +216,10 @@ class CatalogCategorySerializerTests(SimpleTestCase):
                 "organizational-resilience",
                 "business-continuity-and-crisis-management",
             ],
+        )
+        self.assertEqual(
+            data["image_alt"],
+            "Certificate program catalog image",
         )
 
     def test_inactive_categories_are_suppressed(self):

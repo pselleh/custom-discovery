@@ -113,6 +113,7 @@ class CourseRunSerializer(serializers.Serializer):
     currency = serializers.SerializerMethodField()
     seats = SeatSerializer(many=True, read_only=True)
     learning_outcomes = serializers.SerializerMethodField()
+    image_alt = serializers.SerializerMethodField()
     course_overview = serializers.SerializerMethodField()
     references = serializers.SerializerMethodField()
     faculty = FacultyAssignmentSerializer(source="cba_faculty_assignments", many=True, read_only=True)
@@ -173,6 +174,10 @@ class CourseRunSerializer(serializers.Serializer):
         metadata = _catalog_metadata(obj)
         return metadata.learning_outcomes if metadata else []
 
+    def get_image_alt(self, obj):
+        metadata = _catalog_metadata(obj)
+        return getattr(metadata, "image_alt", "") if metadata else ""
+
     def get_course_overview(self, obj):
         metadata = _catalog_metadata(obj)
         return metadata.course_overview if metadata else ""
@@ -203,6 +208,7 @@ class CourseListSerializer(serializers.Serializer):
     primary_catalog_category = serializers.SerializerMethodField()
     catalog_categories = serializers.SerializerMethodField()
     image_url = serializers.CharField(read_only=True)
+    image_alt = serializers.SerializerMethodField()
     marketing_url = serializers.CharField(read_only=True)
     organizations = OrganizationSerializer(source="authoring_organizations", many=True, read_only=True)
     subjects = SubjectSerializer(many=True, read_only=True)
@@ -270,6 +276,10 @@ class CourseListSerializer(serializers.Serializer):
     def get_catalog_categories(self, obj):
         metadata = _catalog_metadata(self._run(obj))
         return _catalog_category_keys(metadata)
+
+    def get_image_alt(self, obj):
+        metadata = _catalog_metadata(self._run(obj))
+        return getattr(metadata, "image_alt", "") if metadata else ""
 
 
 class CourseDetailSerializer(CourseListSerializer):
