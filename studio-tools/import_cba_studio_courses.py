@@ -117,6 +117,7 @@ studio_user = os.environ.get(
 ).strip()
 validate_only = env_bool("CBA_VALIDATE_ONLY")
 update_existing = env_bool("CBA_UPDATE_EXISTING")
+defer_images = env_bool("CBA_DEFER_IMAGES")
 
 errors = []
 
@@ -168,6 +169,8 @@ for index, record in enumerate(records, start=1):
         "course_image",
         "image_alt",
     ):
+        if defer_images and field in {"course_image", "image_alt"}:
+            continue
         if not record.get(field):
             errors.append(f"{prefix}.{field} is required.")
 
@@ -204,9 +207,14 @@ for index, record in enumerate(records, start=1):
         )
 
     image_alt = record.get("image_alt")
+    if not defer_images and (
+        not isinstance(image_alt, str) or not image_alt.strip()
+    ):
+        errors.append(f"{prefix}.image_alt must be a nonempty string.")
 
     if (
-        isinstance(image_alt, str)
+        not defer_images
+        and isinstance(image_alt, str)
         and len(image_alt.strip()) > 255
     ):
         errors.append(
@@ -214,7 +222,7 @@ for index, record in enumerate(records, start=1):
             "255 characters."
         )
 
-    if record.get("course_image"):
+    if not defer_images and record.get("course_image"):
         try:
             validated_image_paths[
                 record.get("course_key")
@@ -255,6 +263,7 @@ store = modulestore()
 summary = {
     "validated": len(records),
     "validated_images": len(validated_image_paths),
+    "images_deferred": defer_images,
     "would_create": [],
     "would_update": [],
     "would_upload_images": [],
@@ -267,12 +276,11 @@ summary = {
 
 for record in records:
     key = CourseKey.from_string(record["course_key"])
-    image_path = validated_image_paths[record["course_key"]]
+    image_path = validated_image_paths.get(record["course_key"])
 
     fields = {
         "display_name": record["title"],
         "self_paced": True,
-        "course_image": NATIVE_COURSE_IMAGE,
         # Wagtail is the public catalog. Do not expose these
         # shells in the LMS catalog or course-about page.
         "catalog_visibility": "none",
@@ -289,6 +297,8 @@ for record in records:
             tzinfo=timezone.utc,
         ),
     }
+    if image_path is not None:
+        fields["course_image"] = NATIVE_COURSE_IMAGE
 
     try:
         exists = store.has_course(
@@ -305,15 +315,14 @@ for record in records:
                 )
                 summary[destination].append(str(key))
 
-                if update_existing:
+                if update_existing and image_path is not None:
                     summary[
                         "would_upload_images"
                     ].append(str(key))
             else:
                 summary["would_create"].append(str(key))
-                summary[
-                    "would_upload_images"
-                ].append(str(key))
+                if image_path is not None:
+                    summary["would_upload_images"].append(str(key))
 
             continue
 
@@ -328,10 +337,11 @@ for record in records:
                 setattr(course, field, value)
 
             store.update_item(course, user.id)
-            save_course_image(course, image_path)
+            if image_path is not None:
+                save_course_image(course, image_path)
+                summary["uploaded_images"].append(str(key))
 
             summary["updated"].append(str(key))
-            summary["uploaded_images"].append(str(key))
             continue
 
         create_new_course(
@@ -343,10 +353,11 @@ for record in records:
         )
 
         course = store.get_course(key)
-        save_course_image(course, image_path)
+        if image_path is not None:
+            save_course_image(course, image_path)
+            summary["uploaded_images"].append(str(key))
 
         summary["created"].append(str(key))
-        summary["uploaded_images"].append(str(key))
 
     except Exception as exc:  # noqa: BLE001
         summary["errors"].append(

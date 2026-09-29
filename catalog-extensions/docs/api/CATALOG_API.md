@@ -235,6 +235,21 @@ Every microcourse and certificate-program record must include
 appear in the category array, and all referenced keys must belong to the active
 controlled taxonomy.
 
+### Import metadata before images are supplied
+
+Use `import_cba_catalog ... --defer-images` to validate and import catalog
+metadata before images are available. This explicit mode ignores image file
+paths and `image_alt`, and preserves existing native program images and alt
+text. New entries use their native empty/default image fields. All other
+required fields, including program syllabus and completion requirements,
+remain required. `--validate-only --defer-images` performs validation without
+writing records.
+
+Use `CBA_DEFER_IMAGES=true` for the matching Studio loader run. Later, supply
+the image files and nonempty `image_alt` values and run both importers without
+the deferred image option. Use `CBA_UPDATE_EXISTING=true` when uploading images
+to existing Studio course shells. Run validation first in each mode.
+
 The example input is `docs/api/cba_catalog_import.example.json`. The Studio
 course-shell loader is `studio-tools/import_cba_studio_courses.py` in the
 containing custom-discovery repository.

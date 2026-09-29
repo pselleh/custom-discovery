@@ -60,8 +60,13 @@ class Command(BaseCommand):
         parser.add_argument("catalog_file", type=Path)
         parser.add_argument("--partner", required=True, help="Discovery Partner.short_code")
         parser.add_argument("--validate-only", action="store_true")
+        parser.add_argument(
+            "--defer-images", action="store_true",
+            help="Import catalog metadata without reading or replacing images or image alt text.",
+        )
 
     def handle(self, *args, **options):
+        self.defer_images = options.get("defer_images", False)
         path = options["catalog_file"]
         self.catalog_base_dir = path.resolve().parent
         try:
@@ -159,6 +164,11 @@ class Command(BaseCommand):
             "course_overview", "syllabus", "references",
             "course_image", "image_alt",
         )
+        if getattr(self, "defer_images", False):
+            required_course_fields = tuple(
+                field for field in required_course_fields
+                if field not in {"course_image", "image_alt"}
+            )
         for index, course in enumerate(payload.get("microcourses", []), start=1):
             prefix = f"microcourses[{index}]"
             for field in required_course_fields:
@@ -174,14 +184,15 @@ class Command(BaseCommand):
                 errors.append(f"{prefix}.course_key must be unique.")
             course_keys.add(key)
             self._validate_common(prefix, course, errors)
-            self._validate_image(
-                prefix,
-                "course_image",
-                course.get("course_image"),
-                errors,
-                required_filename="images_course_image.jpg",
-                allowed_formats={"JPEG"},
-            )
+            if not getattr(self, "defer_images", False):
+                self._validate_image(
+                    prefix,
+                    "course_image",
+                    course.get("course_image"),
+                    errors,
+                    required_filename="images_course_image.jpg",
+                    allowed_formats={"JPEG"},
+                )
             self._validate_faculty(prefix, course.get("faculty", []), people_ids, errors)
 
         program_codes = set()
@@ -194,6 +205,11 @@ class Command(BaseCommand):
             "completion_requirements", "references", "microcourses",
             "card_image", "banner_image", "image_alt",
         )
+        if getattr(self, "defer_images", False):
+            required_program_fields = tuple(
+                field for field in required_program_fields
+                if field not in {"card_image", "banner_image", "image_alt"}
+            )
         for index, program in enumerate(payload.get("certificate_programs", []), start=1):
             prefix = f"certificate_programs[{index}]"
             for field in required_program_fields:
@@ -206,20 +222,21 @@ class Command(BaseCommand):
                 errors.append(f"{prefix}.program_code must be unique.")
             program_codes.add(code)
             self._validate_common(prefix, program, errors)
-            self._validate_image(
-                prefix,
-                "card_image",
-                program.get("card_image"),
-                errors,
-                allowed_formats={"JPEG", "PNG", "WEBP"},
-            )
-            self._validate_image(
-                prefix,
-                "banner_image",
-                program.get("banner_image"),
-                errors,
-                allowed_formats={"JPEG", "PNG", "WEBP"},
-            )
+            if not getattr(self, "defer_images", False):
+                self._validate_image(
+                    prefix,
+                    "card_image",
+                    program.get("card_image"),
+                    errors,
+                    allowed_formats={"JPEG", "PNG", "WEBP"},
+                )
+                self._validate_image(
+                    prefix,
+                    "banner_image",
+                    program.get("banner_image"),
+                    errors,
+                    allowed_formats={"JPEG", "PNG", "WEBP"},
+                )
             if program.get("access_scope") == AccessScope.PROGRAM_ONLY:
                 errors.append(f"{prefix}.access_scope cannot be program_only for a certificate program.")
             self._validate_faculty(prefix, program.get("program_faculty", []), people_ids, errors)
@@ -352,7 +369,7 @@ class Command(BaseCommand):
         if item.get("currency") and len(item["currency"]) != 3:
             errors.append(f"{prefix}.currency must be a three-letter code.")
         image_alt = item.get("image_alt")
-        if image_alt is not None and (
+        if not getattr(self, "defer_images", False) and image_alt is not None and (
             not isinstance(image_alt, str)
             or not image_alt.strip()
         ):
@@ -360,7 +377,8 @@ class Command(BaseCommand):
                 f"{prefix}.image_alt must be a nonempty string."
             )
         elif (
-            isinstance(image_alt, str)
+            not getattr(self, "defer_images", False)
+            and isinstance(image_alt, str)
             and len(image_alt) > 255
         ):
             errors.append(
@@ -525,7 +543,9 @@ class Command(BaseCommand):
                         "access_policy_key": record["access_policy_key"],
                         "standalone_enrollment_allowed": record["standalone_enrollment_allowed"],
                         "course_overview": record["course_overview"],
-                        "image_alt": record["image_alt"].strip(),
+                        **({} if getattr(self, "defer_images", False) else {
+                            "image_alt": record["image_alt"].strip(),
+                        }),
                         "learning_outcomes": record["learning_outcomes"],
                         "references": record["references"],
                     },
@@ -618,16 +638,17 @@ class Command(BaseCommand):
             program.subtitle = record.get("subtitle", "")
             program.overview = record["course_overview"]
             program.total_hours_of_effort = max(1, (record["duration_minutes"] + 59) // 60)
-            self._save_program_image(
-                program,
-                "card_image",
-                record["card_image"],
-            )
-            self._save_program_image(
-                program,
-                "banner_image",
-                record["banner_image"],
-            )
+            if not getattr(self, "defer_images", False):
+                self._save_program_image(
+                    program,
+                    "card_image",
+                    record["card_image"],
+                )
+                self._save_program_image(
+                    program,
+                    "banner_image",
+                    record["banner_image"],
+                )
             program.save()
 
             organization_key = record.get("organization", "CBA")
@@ -657,7 +678,9 @@ class Command(BaseCommand):
                         "currency": record["currency"].upper(),
                         "pacing": record["pacing"],
                         "course_overview": record["course_overview"],
-                        "image_alt": record["image_alt"].strip(),
+                        **({} if getattr(self, "defer_images", False) else {
+                            "image_alt": record["image_alt"].strip(),
+                        }),
                         "syllabus": record["syllabus"],
                         "completion_requirements": record["completion_requirements"],
                         "learning_outcomes": record["learning_outcomes"],

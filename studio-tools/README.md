@@ -13,6 +13,14 @@ Run the loader through the CMS Django shell. It reads:
 - `CBA_VALIDATE_ONLY`: set to `true` for a read-only validation run.
 - `CBA_UPDATE_EXISTING`: set to `true` only when existing courses and their
   images may be updated.
+- `CBA_DEFER_IMAGES`: set to `true` to import course metadata before images
+  are supplied. This ignores image paths and alt text, uploads no assets, and
+  preserves existing course image fields. It defaults to `false`.
+
+For a matching Discovery import, use `--defer-images`. Later, supply real
+images and alt text and omit both deferred image options; use
+`CBA_UPDATE_EXISTING=true` to upload images to existing course shells. Validate
+first. The summary reports `images_deferred` and separate image upload counts.
 
 ## Microcourse image contract
 
